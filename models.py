@@ -1,42 +1,42 @@
-from circuit import Node
-from sympy import Eq
+from component import *
 
 #--------------------------------------------------------------------------------------------------------------------------
 
-class Component:
-    def __init__(self, name, nodes) -> None:
-        self.name = name
-        self.nodes = nodes
-        self.Vs = []
-        self.Is = []
+class VoltageSource(Component):
 
-        for V in nodes:
-            if isinstance(V, Node):
-                self.Vs.append(V())
-            else:
-                self.Vs.append(V)
+    def __init__(self, name, nodes, V = 1):
+        super().__init__(name, nodes)
+        self.V = V
 
-    def setCurrents(self, Is):
-        self.Is = Is
+    def Dir(self):
+        return [(
+                    [
+                    Eq(self.Vs[0] - self.Vs[1], self.V),
+                    Eq(self.Is[0], -self.Is[1]),
+                    ], 
+                    [
+                    ],
+                    ""
+                    )]
+
+#--------------------------------------------------------------------------------------------------------------------------
+
+class CurrentSource(Component):
+   
+    def __init__(self, name, nodes, I = 1e-3):
+        super().__init__(name, nodes)
+        self.I = I
 
     def Dir(self):
         return [(
                  [
-                    Eq(self.Vs[0],  self.Vs[1]),
-                    Eq(self.Is[0], -self.Is[1]),
+                    Eq(self.Is[0], -self.I),
+                    Eq(self.Is[1], self.I),
                  ], 
                  [
-
                  ],
                     ""
-                    #f"{self.name}_SC"
                  )]
-
-    def current(self, id=0):
-        return self.Is[id]
-
-    def allModes(self):
-        return self.Dir()
 
 #--------------------------------------------------------------------------------------------------------------------------
 
@@ -44,7 +44,7 @@ class Resistor(Component):
 
     def __init__(self, name, nodes, R = 1e3):
         super().__init__(name, nodes)
-        self.R  = R
+        self.R = R
 
     def Dir(self):
         return [(
@@ -235,3 +235,66 @@ class PNP(Component):
 
     def allModes(self):
         return  self.Cut() + self.Dir() + self.Inv() + self.Sat()
+
+#--------------------------------------------------------------------------------------------------------------------------
+
+class OpAmp(Component):
+    
+    def __init__(self, name, nodes, Av = oo):
+        super().__init__(name, nodes)
+        self.Av = Av
+
+    def Dir(self):
+        return [(
+                 [
+                    Eq(self.Is[0], 0),
+                    Eq(self.Is[1], 0),
+
+                    Eq(self.Vs[2] / self.Av, self.Vs[0] - self.Vs[1]),
+                    
+                    Eq(self.Is[3], 0),
+                    Eq(self.Is[4], 0),
+                 ], 
+                 [
+                    self.Vs[2] <= self.Vs[3],
+                    self.Vs[2] >= self.Vs[4], 
+                 ],
+                    f"{self.name}_Amp"
+                 )]
+
+    def SatMax(self):
+        return [(
+                 [
+                    Eq(self.Is[0], 0),
+                    Eq(self.Is[1], 0),
+
+                    Eq(self.Vs[2], self.Vs[3]),
+                    
+                    Eq(self.Is[3], 0),
+                    Eq(self.Is[4], 0),
+                 ], 
+                 [
+                    self.Vs[0] - self.Vs[1] > self.Vs[3] / self.Av
+                 ],
+                    f"{self.name}_SatMax"
+                 )]
+
+    def SatMin(self):
+        return [(
+                 [
+                    Eq(self.Is[0], 0),
+                    Eq(self.Is[1], 0),
+
+                    Eq(self.Vs[2], self.Vs[4]),
+                    
+                    Eq(self.Is[3], 0),
+                    Eq(self.Is[4], 0),
+                 ], 
+                 [
+                    self.Vs[0] - self.Vs[1] < self.Vs[4] / self.Av
+                 ],
+                    f"{self.name}_SatMin"
+                 )]
+    
+    def allModes(self):
+        return  self.Dir() + self.SatMax() + self.SatMin()

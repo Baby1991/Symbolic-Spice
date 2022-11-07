@@ -63,15 +63,20 @@ class Circuit:
             Is.append(I)
 
         element.setCurrents(Is)
-        self.elements[element.name]= element
+        self.elements[element.name] = element
         return element
 
-    def addElements(self, elements):
+    def addElements(self, *elements):
         return [self.addElement(element) for element in elements]
 
     def currentThroughElement(self, name, id=0):
         return self.elements[name].current(id)
 
+    def potentialOnElement(self, name, id=0):
+        return self.elements[name].potential(id)
+
+    def voltageOnElement(self, name, id0=0, id1=1):
+        return self.potentialOnElement(name, id0) - self.potentialOnElement(name, id1)
 
 
     def solve(self, debugLog = True):
