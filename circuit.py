@@ -1,207 +1,279 @@
-from sympy import Symbol, Eq, solve, Interval, oo, EmptySet, Float, simplify, preorder_traversal, Set
-import itertools
-import matplotlib.pyplot as plt
-import numpy as np
-
-class Node:
-    
-    def __init__(self, symbol):
-        self.symbol = symbol
-        self.currents = []
-
-    def addCurrent(self, symbol):
-        self.currents.append(symbol)
-
-    def __call__(self):
-        return self.symbol
-
-    def equations(self):
-        eq = 0
-        for current in self.currents:
-            eq += current
-        return Eq(eq, 0)
-
+from sympy import Symbol, Eq, Expr
+from node import Node
+from copy import deepcopy
 
 class Circuit:
 
     def __init__(self):
-        self.nodes    = []
-        self.voltages = []
-        self.currents = []
-        self.elements = {}
+        self._constants_     = {}
+        self._constantsVals_ = {}
+        self._generics_      = {}
+        self._genericsVals_  = {}
+
+        self._ports_         = set()
+        self._nodes_         = set()
+        self._elements_      = {}
+        self._subcircuits_   = {}
+
+        self._flattened_ = {}
+        self._compiled_ = {}
+
+    def constant(self, name, value):
+        if name in self._constants_:
+            raise Exception("Constant Already Exists")
+        
+        id = f"C{len(self._constants_)}"
+        sym = Symbol(id, real=True)
+
+        constant = {name : sym}
+        constantValue = {name : value}
+        self._constants_.update(constant)
+        self._constantsVals_.update(constantValue)
+        return sym
+
+    def port(self, name):
+        if name in self._ports_:
+            raise Exception("Port Already Exists")
+        
+        self._ports_.add(name)
+        return name
+
+    def generic(self, name, value):
+        if name in self._generics_:
+            raise Exception("Generic Already Exists")
+
+        id = f"G{len(self._generics_)}"
+        sym = Symbol(id, real=True)
+        generic = {name : sym}
+        genericValue = {name : value}
+        self._generics_.update(generic)
+        self._genericsVals_.update(genericValue)
+        return sym
+
+    def node(self, name):
+        if name in self._nodes_:
+            raise Exception("Node Already Exists")
+        
+        self._nodes_.add(name)    
+        return name
+
+    def nodes(self, *names):
+        nodes = list()
+        for name in names:
+            nodes.append(self.node(name))
+        return nodes
+
+    def element(self, element):
+        if element.name in self._elements_.keys():
+            raise Exception("Element Already Exists")
+        
+        elem = {element.name : element}
+        self._elements_.update(elem)
+        return elem
+
+    def elements(self, *elements):
+        elemSet = {}
+        for elem in elements:
+            elemSet.update(self.element(elem))
+        return elemSet
 
 
-    def addNode(self):
-        id = len(self.nodes)
-        V = Symbol(f"V_{id}", real=True)
-        node = Node(V)
-        self.voltages.append(V)
-        self.nodes.append(node)
-        return node
+    def subcircuit(self, circuit, name, ports, generics = {}):
 
-    def addNodes(self, num):
-        return [self.addNode() for _ in range(num)]
+        if name in self._subcircuits_:
+            raise Exception("Subcircuit Already Exists")
 
+        keys1 = circuit._ports_
+        keys2 = set(ports.keys())
 
-    def addCurrent(self):
-        id = len(self.currents)
-        current = Symbol(f"I_{id}", real=True)
-        self.currents.append(current)
-        return current
+        port_map = {name : ports[name] for name in circuit._ports_}
 
-    def addCurrents(self, num):
-        return [self.addCurrent() for _ in range(num)]
+        if keys1 != keys2:
+            raise Exception("Invalid Port Map")
+        
+        keys1 = set(circuit._generics_.keys())
+        keys2 = set(generics.keys())
 
+        if (keys2 - keys1) != set():
+            raise Exception("Generic from map not found in circuit")
 
-    def addElement(self, element):
-        Is = []
+        generic_map = {name : generics[name] for name in generics.keys()}
 
-        for node in element.nodes:
-            I = self.addCurrent()
-            if isinstance(node, Node):
-                node.addCurrent(I)
-            Is.append(I)
+        subcircuit = {name : deepcopy((circuit, port_map, generic_map))}
 
-        element.setCurrents(Is)
-        self.elements[element.name] = element
-        return element
+        self._subcircuits_.update(subcircuit)
+        return subcircuit
 
-    def addElements(self, *elements):
-        return [self.addElement(element) for element in elements]
-
+    """
     def currentThroughElement(self, name, id=0):
-        return self.elements[name].current(id)
+        if self.compiled != {}:
+            return self.compiled["elements"][name].current(id)
+        else:
+            raise Exception("Not Yet Compiled")
 
     def potentialOnElement(self, name, id=0):
-        return self.elements[name].potential(id)
+        if self.compiled != {}:
+            return self.compiled["elements"][name].potential(id)
+        else:
+            raise Exception("Not Yet Compiled")
 
     def voltageOnElement(self, name, id0=0, id1=1):
         return self.potentialOnElement(name, id0) - self.potentialOnElement(name, id1)
+    """
+
+    def flatten(self, port_map = {}, generic_map={}, prefix=""):
+        constants = deepcopy(self._constants_)
+        constantsVals = deepcopy(self._constantsVals_)
+        generics = deepcopy(self._generics_)
+        genericsVals = deepcopy(self._genericsVals_)
+        genericsVals.update(deepcopy(generic_map))
+
+        generic_subs = {generics[key] : genericsVals[key] for key in generics.keys()}
+
+        constant_subs = {constants[key] : constantsVals[key].subs(generic_subs) if "sympy" in str(type(constantsVals[key])) else constantsVals[key] for key in constants.keys()}
+        constant_subs.update(generic_subs)
+
+        while True:
+            for name, value in constant_subs.copy().items():
+                if "sympy" in str(type(value)):
+                    value = value.subs(constant_subs)
+                    constant_subs.update({name : value})
+
+            if not any(["sympy" in str(type(value)) and not "numbers" in str(type(value)) for value in constant_subs.values()]):
+                break
+
+        nodes = deepcopy(self._nodes_)
+        ports = {port : port for port in deepcopy(self._ports_)}
+        elements = deepcopy(self._elements_)
+        subcircuits = deepcopy(self._subcircuits_)
+        
+        for name, (subcircuit, subport_map, subgeneric_map) in subcircuits.items():            
+
+            subgeneric_map = {name : value.subs(constant_subs) if "sympy" in str(type(value)) else value for name, value in subgeneric_map.items()}
+
+            flattened = subcircuit.flatten(subport_map, subgeneric_map, name)
+            nodes.update(flattened["nodes"])
+            elements.update(flattened["elements"])
+            ports.update(flattened["ports"])
+
+        if prefix != "":
+            for node in nodes.copy():
+                nodes.remove(node)
+
+                if node in port_map.keys():
+                    node = port_map[node]
+                elif isinstance(node, int) or isinstance(node, float):
+                    pass
+                else:
+                    node = prefix + "_" + node
+
+                if not isinstance(node, int) and not isinstance(node, float):
+                    nodes.add(node)
+
+            for name, port in ports.copy().items():
+                del ports[name]
+
+                name = prefix + "_" + name
+
+                if port in port_map.keys():
+                    port = port_map[port]
+                elif isinstance(port, int) or isinstance(port, float):
+                    pass
+                else:
+                    port = prefix + "_" + port
+
+                ports.update({name : port})
 
 
-    def solve(self, debugLog = True):
+            for name, element in elements.copy().items():
+                del elements[name]
 
-        solutions = []
-        permutations = itertools.product(*[elem.allModes() for elem in self.elements.values()])
-
-        circuit = [node.equations() for node in self.nodes]
-        variables = self.voltages + self.currents
-
-        for perm in permutations:
-
-            equations = circuit + []
-            conditions = []
-            states = ""
-            for formula, condition, state in perm:
-                equations += formula
-                conditions += condition
-                if state:
-                    states += state + ", "
+                elem_name = prefix + "_" + name
+                element.name  = prefix + "_" + element.name
+                element.values = {name : value.subs(constant_subs) if "sympy" in str(type(value)) else value for name, value in element.values.items()}
                 
-            states = states[:-2]
+                newElemNodes = {}
+                for name, node in element.nodes.items():
+                    if node in port_map.keys():
+                        node = port_map[node]
+                    elif isinstance(node, int) or isinstance(node, float):
+                        pass
+                    else:
+                        node = prefix + "_" + node
 
-            if debugLog:
-                print(equations)
-                print(conditions)
-                print(states)
+                    newElemNodes.update({name : node})                
 
-            sols = solve(equations, variables, dict=True)
+                element.nodes = newElemNodes
+                elements.update({elem_name : element})
+        
+        for port in port_map.values():
+            if isinstance(port, int) or isinstance(port, float):
+                pass
+            else:
+                nodes.add(port)
 
-            for sol in sols:
-                try:
+        flattened = {"nodes" : nodes, "elements" : elements, "ports" : ports}
+        if prefix == "":
+            self._flattened_ = flattened
+        return flattened
 
-                    if debugLog:
-                        print(sol)
 
-                    if any(not node in sol for node in variables):
-                        if debugLog:
-                            print("Invalid solution")
-                        continue
 
-                    ineqs = [ineq.subs(sol) for ineq in conditions]
-                    
-                    if debugLog:
-                        print(ineqs)
 
-                    if all(x == True for x in ineqs):
-                        if debugLog:
-                            print("Always True")
-                        solutions.append((Interval(-oo, oo), sol, states))
-                        continue
 
-                    if any(x == False for x in ineqs):
-                        if debugLog:
-                            print("Always False")
-                        continue
+    def compile(self, generics = {}):
+        self._flattened_ = self.flatten(generic_map = generics)
 
-                    interval = solve(ineqs).as_set()
+        variables = set()
+        
+        nodes = {}
 
-                    if debugLog:
-                            print(interval)
+        for node in self._flattened_["nodes"]:
+            V = Symbol(f"V{len(nodes)}", real=True)
+            variables.add(V)
+            nodes.update({node : Node(V)})
 
-                    if interval != EmptySet:
-                        solutions.append((interval, sol, states))
+        elements = self._flattened_["elements"]
+        ports = self._flattened_["ports"]
+        #ports = {name : nodes[port] for name, port in self._flattened_["ports"].items()}
+        elementsCurrents = {}
+        elementsVoltages = {}
 
-                except Exception as e:
-                    if debugLog:
-                        print(e)
+        for name, element in elements.items():
 
-            if debugLog:
-                print("-------------------------------------")
+            elementCurrents = {}
+            elementVoltages = {}
 
-        return solutions
+            for elem_node_name, elem_node in element.nodes.items():
+
+                if elem_node in nodes.keys():
+                    elementVoltages.update({elem_node_name : nodes[elem_node]()})
+                else:
+                    elementVoltages.update({elem_node_name : elem_node})
+
+                I = Symbol(f"I{len(elementsCurrents)}_{len(elementCurrents)}", real=True)
+                variables.add(I)
+                if elem_node in nodes.keys():
+                    nodes[elem_node].addCurrent(I)
+                elementCurrents.update({elem_node_name : I})
+        
+            elementsVoltages.update({name : elementVoltages})
+            elementsCurrents.update({name : elementCurrents})
+
+        nodeEquations = {node.equations() for node in nodes.values()}
+        nodes = {name : node() for name, node in nodes.items()}
+
+        compiled = {"nodes" : nodes, "nodeEquations" : nodeEquations, "elements" : elements, "voltages" : elementsVoltages, "currents" : elementsCurrents, "variables" : variables, "ports" : ports}
+        self._compiled_ = compiled
+        return compiled
+        
+
+
+
+    
+    def __call__(self, generics = {}):
+        self._compiled_ = self.compile(generics)
+        return self._compiled_
+
 
 #--------------------------------------------------------------------------------
-#--------------------------------------------------------------------------------
-
-def printCircuitSolution(solutions, var=None):
-    for interval, solution, state in solutions:
-        print("-------------------------------------")
-        if state != "":
-            print(state)
-        if var is not None:
-            print(f"{var} ∈ {interval}")
-        print(solution)
-        print("-------------------------------------")
-
-#--------------------------------------------------------------------------------
-
-def plotMeasurments(solutions, minx, maxx, step, measurments, inputVar):
-
-    max_scale = Interval(minx, maxx)
-
-    for measurment, measurmentName in measurments:
-
-        for interval, solution, state in solutions:
-            interval = interval.intersect(max_scale)
-
-            formula = measurment(solution)
-
-            if isinstance(interval, Interval):
-                start, end = float(interval.start), float(interval.end)
-                numP = int((end - start) / step)
-                xs = list(np.linspace(start, end, numP))
-                if len(xs) < 2:
-                    xs =[start, end]
-                ys = [formula.subs(inputVar, x) for x in xs]
-
-                formula = simplify(formula)
-
-                for a in preorder_traversal(formula):
-                    if isinstance(a, Float):
-                        formula = formula.subs(a, round(a, 5))
-
-                if xs and ys:
-                    plt.plot(xs, ys, label=f"{measurmentName} : {repr(formula)}\n{state}")
-            elif isinstance(interval, Set):
-                xs = list(interval)
-                ys = [formula.subs(inputVar, x) for x in xs]
-
-                formula = simplify(formula)
-
-                for a in preorder_traversal(formula):
-                    if isinstance(a, Float):
-                        formula = formula.subs(a, round(a, 5))
-
-                if xs and ys:
-                    plt.scatter(xs, ys, label=f"{measurmentName} : {repr(formula)}\n{state}")

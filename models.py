@@ -3,298 +3,491 @@ from component import *
 #--------------------------------------------------------------------------------------------------------------------------
 
 class VoltageSource(Component):
+    """
+    Default Values: \\
+    Vdc = 0V \\
+    Vac = 0V
+    """
 
-    def __init__(self, name, nodes, V = 1):
-        super().__init__(name, nodes)
-        self.V = V
+    def getValues(self):
+        Vdc = self.values.get("Vdc", 0)
+        Vac = self.values.get("Vac", 0)
+        return (Vdc, Vac)
 
-    def Dir(self):
+    def source(self, Vs, Is):
+
+        Vdc, Vac = self.getValues()
+
         return [(
                     [
-                    Eq(self.Vs[0] - self.Vs[1], self.V),
-                    Eq(self.Is[0], -self.Is[1]),
+                        Eq(Vs["V+"] - Vs["V-"], Vdc),
+                        *Component.ZeroCurrentSum(Is),
                     ], 
                     [
+                        Eq(Vs["V+"] - Vs["V-"], Vac),
+                        *Component.ZeroCurrentSum(Is),
                     ],
-                    ""
+                    [
+
+                    ],
+                        {}
                     )]
+
+    def allModes(self, Vs, Is):
+        return self.source(Vs, Is)
 
 #--------------------------------------------------------------------------------------------------------------------------
 
 class CurrentSource(Component):
-   
-    def __init__(self, name, nodes, I = 1e-3):
-        super().__init__(name, nodes)
-        self.I = I
+    """
+    Default Values: \\
+    Idc = 0A \\
+    Iac = 0A
+    """
 
-    def Dir(self):
+    def getValues(self):
+        Idc = self.values.get("Idc", 0)
+        Iac = self.values.get("Iac", 0)
+        return (Idc, Iac)
+
+    def source(self, Vs, Is):
+
+        Idc, Iac = self.getValues()
+
         return [(
                  [
-                    Eq(self.Is[0], -self.I),
-                    Eq(self.Is[1], self.I),
+                    Eq(Is["V+"], -Idc),
+                    *Component.ZeroCurrentSum(Is),
                  ], 
                  [
+                    Eq(Is["V-"], -Iac),
+                    *Component.ZeroCurrentSum(Is),
                  ],
-                    ""
+                 [
+
+                 ],
+                    {}
                  )]
+
+    def allModes(self, Vs, Is):
+        return self.source(Vs, Is)
 
 #--------------------------------------------------------------------------------------------------------------------------
 
 class Resistor(Component):
+    """
+    Default Values: \\
+    R = 1k
+    """
 
-    def __init__(self, name, nodes, R = 1e3):
-        super().__init__(name, nodes)
-        self.R = R
+    def getValues(self):
+        R = self.values.get("R", 1e3)
+        return (R)
 
-    def Dir(self):
+    def resistor(self, Vs, Is):
+
+        R = self.getValues()
+
         return [(
                  [
-                    Eq(self.Is[0], (self.Vs[0] - self.Vs[1]) / self.R),
-                    Eq(self.Is[0], -self.Is[1]),
+                    Eq(Is["V1"], (Vs["V1"] - Vs["V2"]) / R),
+                    *Component.ZeroCurrentSum(Is),
+                 ],
+                 [
+                    Eq(Is["V1"], (Vs["V1"] - Vs["V2"]) / R),
+                    *Component.ZeroCurrentSum(Is),
                  ], 
                  [
+                    
                  ],
-                    ""
-                    #f"{self.name}_{self.R}"
+                    {}
                  )]
+
+    def allModes(self, Vs, Is):
+        return self.resistor(Vs, Is)
+
+#--------------------------------------------------------------------------------------------------------------------------
+
+class Capacitor(Component):   #unfinished
+    """
+    Default Values: \\
+    C = 1uF
+    """
+
+    def getValues(self):
+        C = self.values.get("C", 1e-6)
+        return (C)
+
+    def capacitor(self, Vs, Is):
+
+        C = self.getValues()
+
+        return [(
+                 [
+                    *Component.OpenConnection(Vs, Is),
+                 ],
+                 [
+                    *Component.ShortCircuit(Vs, Is),
+                 ], 
+                 [
+                    
+                 ],
+                    {}
+                 )]
+
+    def allModes(self, Vs, Is):
+        return self.capacitor(Vs, Is)
+
+#--------------------------------------------------------------------------------------------------------------------------
+
+class Inductor(Component):   #unfinished
+    """
+    Default Values: \\
+    L = 1mH
+    """
+
+    def getValues(self):
+        L = self.values.get("L", 1e-3)
+        return (L)
+
+    def inductor(self, Vs, Is):
+
+        L = self.getValues()
+
+        return [(
+                 [
+                    *Component.ShortCircuit(Vs, Is),
+                 ],
+                 [
+                    *Component.OpenConnection(Vs, Is),
+                 ], 
+                 [
+                    
+                 ],
+                    {}
+                 )]
+
+    def allModes(self, Vs, Is):
+        return self.inductor(Vs, Is)
 
 #--------------------------------------------------------------------------------------------------------------------------
 
 class Diode(Component):
-    def __init__(self, name, nodes, Vt = 0.6):
-        super().__init__(name, nodes)
-        self.Vt = Vt
+    """
+    Default Values: \\
+    Vd = 0.6V
+    """
 
-    def Cut(self):
+    def getValues(self):
+        Vd = self.values.get("Vd", 0.6)
+        return (Vd)
+
+    def Cut(self, Vs, Is):
+
+        Vd = self.getValues()
+
         return [(
                  [
-                    Eq(self.Is[0], 0),
-                    Eq(self.Is[1], 0),
+                    *Component.OpenConnection(Vs, Is)
                  ], 
                  [
-                    self.Vs[0] - self.Vs[1] < self.Vt,
+                    
                  ],
-                    f"{self.name}_Cut"
+                 [
+                    Vs["Vp"] - Vs["Vn"] < Vd,
+                 ],
+                    {self.name : "Cut"}
                  )]
 
-    def Dir(self):
+    def Dir(self, Vs, Is):
+
+        Vd = self.getValues()
+
         return [(
                  [
-                    Eq(self.Vs[0] - self.Vs[1], self.Vt),
-                    Eq(self.Is[0], - self.Is[1]),
+                    Eq(Vs["Vp"] - Vs["Vn"], Vd),
+                    *Component.ZeroCurrentSum(Is)
                  ], 
                  [
-                    self.Is[0] >= 0,
+
                  ],
-                    f"{self.name}_Fwd"
+                 [
+                    Is["Vp"] >= 0,
+                 ],
+                    {self.name : "Fwd"}
                  )]
 
-    def allModes(self):
-        return  self.Cut() + self.Dir()
+    def allModes(self, Vs, Is):
+        return  self.Cut(Vs, Is) + self.Dir(Vs, Is)
 
 #--------------------------------------------------------------------------------------------------------------------------
 
 class NPN(Component):
+    """
+    Default Values: \\
+    Vdf = 0.7V \\
+    Vdr = 0.5V \\
+    Bf = 100 \\
+    Br = 0.1
+    """
 
-    def __init__(self, name, nodes, Bf = 100, Br = 0.1, Vtf = 0.7, Vtr = 0.5):
-        super().__init__(name, nodes)
-        self.Bf = Bf
-        self.Br = Br
-        self.Vtf = Vtf
-        self.Vtr = Vtr
+    def getValues(self):
+        Vdf = self.values.get("Vdf", 0.7)
+        Vdr = self.values.get("Vdr", 0.5)
+        Bf  = self.values.get("Bf", 100)
+        Br  = self.values.get("Br", 0.1)
+        return (Vdf, Vdr, Bf, Br)
 
-    def Cut(self):
+    def Cut(self, Vs, Is):
+
+        Vdf, Vdr, Bf, Br = self.getValues()
+
         return [(
                  [
-                    Eq(self.Is[0], 0),
-                    Eq(self.Is[1], 0),
-                    Eq(self.Is[2], 0),
-                 ], 
-                 [
-                    self.Vs[1] - self.Vs[2] < self.Vtf,
-                    self.Vs[1] - self.Vs[0] < self.Vtr,
+                    *Component.OpenConnection(Vs, Is),
                  ],
-                    f"{self.name}_Cut"
+                 [
+
+                 ],
+                 [
+                    Vs["Vb"] - Vs["Ve"] < Vdf, 
+                    Vs["Vb"] - Vs["Vc"] < Vdr,
+                 ],
+                    {self.name : "Cut"}
                  )]
 
-    def Dir(self):
+    def Dir(self, Vs, Is):
+
+        Vdf, Vdr, Bf, Br = self.getValues()
+
         return [(
                  [
-                    Eq(self.Is[0], self.Bf * self.Is[1]),
-                    Eq(self.Is[2], -(self.Bf + 1) * self.Is[1]),
-                    Eq(self.Vs[1] - self.Vs[2], self.Vtf),
-                 ], 
-                 [
-                    self.Is[1] >= 0,
-                    self.Vs[1] - self.Vs[0] < self.Vtr,
+                    Eq(Is["Vc"], Bf * Is["Vb"]),
+                    Eq(Is["Ve"], -(Bf + 1) * Is["Vb"]),
+                    Eq(Vs["Vb"] - Vs["Ve"], Vdf),
                  ],
-                    f"{self.name}_Fwd"
+                 [
+
+                 ],
+                 [
+                    Is["Vb"] >= 0,
+                    Vs["Vb"] - Vs["Vc"] < Vdr,
+                 ],
+                    {self.name : "Fwd"}
                  )]
 
-    def Inv(self):
+    def Inv(self, Vs, Is):
+
+        Vdf, Vdr, Bf, Br = self.getValues()
+
         return [(
                  [
-                    Eq(self.Is[2], self.Br * self.Is[1]),
-                    Eq(self.Is[0], -(self.Br + 1) * self.Is[1]),
-                    Eq(self.Vs[1] - self.Vs[0], self.Vtr),
+                    Eq(Is["Ve"], Br * Is["Vb"]),
+                    Eq(Is["Vc"], -(Br + 1) * Is["Vb"]),
+                    Eq(Vs["Vb"] - Vs["Vc"], Vdr),
                  ],
                  [
-                    self.Is[1] >= 0,
-                    self.Vs[1] - self.Vs[2] < self.Vtf,
+
                  ],
-                    f"{self.name}_Inv"
+                 [
+                    Is["Vb"] >= 0,
+                    Vs["Vb"] - Vs["Ve"] < Vdf,
+                 ],
+                    {self.name : "Inv"}
                  )]
 
-    def Sat(self):
+    def Sat(self, Vs, Is):
+
+        Vdf, Vdr, Bf, Br = self.getValues()
+
         return [(
                  [
-                    Eq(self.Is[0] + self.Is[1] + self.Is[2], 0),
-                    Eq(self.Vs[1] - self.Vs[2], self.Vtf),
-                    Eq(self.Vs[1] - self.Vs[0], self.Vtr),
-                 ], 
+                    *Component.ZeroCurrentSum(Is),
+                    Eq(Vs["Vb"] - Vs["Ve"], Vdf),
+                    Eq(Vs["Vb"] - Vs["Vc"], Vdr),
+                 ],
                  [
-                    self.Is[1] >= 0,
+
+                 ],
+                 [
+                    Is["Vb"] >= 0,
                     
-                    self.Is[0] <= self.Bf * self.Is[1],
-                    self.Is[2] <= self.Br * self.Is[1],
+                    Is["Vc"] <= Bf * Is["Vb"],
+                    Is["Ve"] <= Br * Is["Vb"],
                  ],
-                    f"{self.name}_Sat"
+                    {self.name : "Sat"}
                  )]
 
-    def allModes(self):
-        return  self.Cut() + self.Dir() + self.Inv() + self.Sat()
+    def allModes(self, Vs, Is):
+        return  self.Cut(Vs, Is) + self.Dir(Vs, Is) + self.Inv(Vs, Is) + self.Sat(Vs, Is)
 
 #--------------------------------------------------------------------------------------------------------------------------
 
 class PNP(Component):
+    """
+    Default Values: \\
+    Vdf = 0.7V \\
+    Vdr = 0.5V \\
+    Bf = 100 \\
+    Br = 0.1
+    """
 
-    def __init__(self, name, nodes, Bf = 100, Br = 0.1, Vtf = 0.7, Vtr = 0.5):
-        super().__init__(name, nodes)
-        self.Bf = Bf
-        self.Br = Br
-        self.Vtf = Vtf
-        self.Vtr = Vtr
+    def getValues(self):
+        Vdf = self.values.get("Vdf", 0.7)
+        Vdr = self.values.get("Vdr", 0.5)
+        Bf  = self.values.get("Bf", 100)
+        Br  = self.values.get("Br", 0.1)
+        return (Vdf, Vdr, Bf, Br)
 
-    def Cut(self):
+    def Cut(self, Vs, Is):
+
+        Vdf, Vdr, Bf, Br = self.getValues()
+
         return [(
                  [
-                    Eq(self.Is[0], 0),
-                    Eq(self.Is[1], 0),
-                    Eq(self.Is[2], 0),
-                 ], 
-                 [
-                    self.Vs[0] - self.Vs[1] < self.Vtf,
-                    self.Vs[2] - self.Vs[1] < self.Vtr,
+                    *Component.OpenConnection(Vs, Is),
                  ],
-                    f"{self.name}_Cut"
+                 [
+
+                 ],
+                 [
+                    Vs["Ve"] - Vs["Vb"] < Vdf,
+                    Vs["Vc"] - Vs["Vb"] < Vdr,
+                 ],
+                    {self.name : "Cut"}
+                 )]
+        
+    def Dir(self, Vs, Is):
+
+        Vdf, Vdr, Bf, Br = self.getValues()
+
+        return [(
+                 [
+                    Eq(Is["Ve"], -(Bf + 1) * Is["Vb"]),
+                    Eq(Is["Vc"], Bf * Is["Vb"]),
+                    Eq(Vs["Ve"] - Vs["Vb"], Vdf),
+                 ],
+                 [
+
+                 ],
+                 [
+                    Is["Vb"] <= 0,
+                    Vs["Vc"] - Vs["Vb"] < Vdr,
+                 ],
+                    {self.name : "Fwd"}
                  )]
 
-    def Dir(self):
+    def Inv(self, Vs, Is):
+
+        Vdf, Vdr, Bf, Br = self.getValues()
+
         return [(
                  [
-                    Eq(self.Is[0], -(self.Bf + 1) * self.Is[1]),
-                    Eq(self.Is[2], self.Bf * self.Is[1]),
-                    Eq(self.Vs[0] - self.Vs[1], self.Vtf),
-                 ], 
-                 [
-                    self.Is[1] <= 0,
-                    self.Vs[2] - self.Vs[1] < self.Vtr,
+                    Eq(Is["Vc"], -(Br + 1) * Is["Vb"]),
+                    Eq(Is["Ve"], Br * Is["Vb"]),
+                    Eq(Vs["Vc"] - Vs["Vb"], Vdr),
                  ],
-                    f"{self.name}_Fwd"
+                 [
+
+                 ],
+                 [
+                    Is["Vb"] <= 0,
+                    Vs["Ve"] - Vs["Vb"] < Vdf,
+                 ],
+                    {self.name : "Inv"}
                  )]
 
-    def Inv(self):
-        return [(
-                 [
-                    Eq(self.Is[2], -(self.Br + 1) * self.Is[1]),
-                    Eq(self.Is[0], self.Br * self.Is[1]),
-                    Eq(self.Vs[2] - self.Vs[1], self.Vtr),
-                 ],
-                 [
-                    self.Is[1] <= 0,
-                    self.Vs[0] - self.Vs[1] < self.Vtf,
-                 ],
-                    f"{self.name}_Inv"
-                 )]
+    def Sat(self, Vs, Is):
 
-    def Sat(self):
+        Vdf, Vdr, Bf, Br = self.getValues()
+
         return [(
                  [
-                    Eq(self.Is[0] + self.Is[1] + self.Is[2], 0),
-                    Eq(self.Vs[0] - self.Vs[1], self.Vtf),
-                    Eq(self.Vs[2] - self.Vs[1], self.Vtr),
-                 ], 
+                    *Component.ZeroCurrentSum(Is),
+                    Eq(Vs["Ve"] - Vs["Vb"], Vdf),
+                    Eq(Vs["Vc"] - Vs["Vb"], Vdr),
+                 ],
                  [
-                    self.Is[1] <= 0,
+
+                 ],
+                 [
+                    Is["Vb"] <= 0,
                 
-                    self.Is[2] >= self.Bf * self.Is[1],
-                    self.Is[0] >= self.Br * self.Is[1],
+                    Is["Vc"] >= Bf * Is["Vb"],
+                    Is["Ve"] >= Br * Is["Vb"],
                  ],
-                    f"{self.name}_Sat"
+                    {self.name : "Sat"}
                  )]
 
-    def allModes(self):
-        return  self.Cut() + self.Dir() + self.Inv() + self.Sat()
+    def allModes(self, Vs, Is):
+        return  self.Cut(Vs, Is) + self.Dir(Vs, Is) + self.Inv(Vs, Is) + self.Sat(Vs, Is)
 
 #--------------------------------------------------------------------------------------------------------------------------
 
 class OpAmp(Component):
+    """
+    Default Values: \\
+    Av = inf
+    """
+
+    def getValues(self):
+        Av = self.values.get("Av", oo)
+        return (Av)
+
+    def Dir(self, Vs, Is):
+
+        Av = self.getValues()
+
+        return [(
+                 [
+                    *Component.ZeroCurrents({Is["V+"], Is["V-"], Is["Vcc"], Is["Vee"]}),
+                    Eq(Vs["Vop"] / Av, Vs["V+"] - Vs["V-"]),
+                 ],
+                 [
+                    
+                 ],
+                 [
+                    Vs["Vop"] <= Vs["Vcc"],
+                    Vs["Vop"] >= Vs["Vee"], 
+                 ],
+                    {self.name : "Amp"}
+                 )]
+
+    def SatMax(self, Vs, Is):
+
+        Av = self.getValues()
+
+        return [(
+                 [
+                    *Component.ZeroCurrents({Is["V+"], Is["V-"], Is["Vcc"], Is["Vee"]}),
+                    Eq(Vs["Vop"], Vs["Vcc"])
+                 ],
+                 [
+
+                 ],
+                 [
+                    Vs["V+"] - Vs["V-"] > Vs["Vcc"] / Av
+                 ],
+                    {self.name : "SatMax"}
+                 )]
+
+    def SatMin(self, Vs, Is):
+
+        Av = self.getValues()
+
+        return [(
+                 [
+                    *Component.ZeroCurrents({Is["V+"], Is["V-"], Is["Vcc"], Is["Vee"]}),
+                    Eq(Vs["Vop"], Vs["Vee"])
+                 ],
+                 [
+
+                 ],
+                 [
+                    Vs["V+"] - Vs["V-"] < Vs["Vee"] / Av
+                 ],
+                    {self.name : "SatMin"}
+                 )]
     
-    def __init__(self, name, nodes, Av = oo):
-        super().__init__(name, nodes)
-        self.Av = Av
-
-    def Dir(self):
-        return [(
-                 [
-                    Eq(self.Is[0], 0),
-                    Eq(self.Is[1], 0),
-
-                    Eq(self.Vs[2] / self.Av, self.Vs[0] - self.Vs[1]),
-                    
-                    Eq(self.Is[3], 0),
-                    Eq(self.Is[4], 0),
-                 ], 
-                 [
-                    self.Vs[2] <= self.Vs[3],
-                    self.Vs[2] >= self.Vs[4], 
-                 ],
-                    f"{self.name}_Amp"
-                 )]
-
-    def SatMax(self):
-        return [(
-                 [
-                    Eq(self.Is[0], 0),
-                    Eq(self.Is[1], 0),
-
-                    Eq(self.Vs[2], self.Vs[3]),
-                    
-                    Eq(self.Is[3], 0),
-                    Eq(self.Is[4], 0),
-                 ], 
-                 [
-                    self.Vs[0] - self.Vs[1] > self.Vs[3] / self.Av
-                 ],
-                    f"{self.name}_SatMax"
-                 )]
-
-    def SatMin(self):
-        return [(
-                 [
-                    Eq(self.Is[0], 0),
-                    Eq(self.Is[1], 0),
-
-                    Eq(self.Vs[2], self.Vs[4]),
-                    
-                    Eq(self.Is[3], 0),
-                    Eq(self.Is[4], 0),
-                 ], 
-                 [
-                    self.Vs[0] - self.Vs[1] < self.Vs[4] / self.Av
-                 ],
-                    f"{self.name}_SatMin"
-                 )]
-    
-    def allModes(self):
-        return  self.Dir() + self.SatMax() + self.SatMin()
+    def allModes(self, Vs, Is):
+        return  self.Dir(Vs, Is) + self.SatMax(Vs, Is) + self.SatMin(Vs, Is)
