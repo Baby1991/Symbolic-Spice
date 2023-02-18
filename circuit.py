@@ -1,6 +1,7 @@
 from sympy import Symbol, Eq, Expr
 from node import Node
 from copy import deepcopy
+import re
 
 class Circuit:
 
@@ -31,12 +32,25 @@ class Circuit:
         self._constantsVals_.update(constantValue)
         return sym
 
-    def port(self, name):
-        if name in self._ports_:
-            raise Exception("Port Already Exists")
+
+    def port(self, names):
+        names = re.split("\W+", names)
         
-        self._ports_.add(name)
-        return name
+        ports = list()
+        for name in names:
+            if name in self._ports_:
+                raise Exception("Port Already Exists")
+            
+            self._ports_.add(name)
+            ports.append(name)
+            
+        if len(ports) ==  0:
+            return None
+        elif len(ports) == 1:
+            return ports[0]
+        else:
+            return ports
+        
 
     def generic(self, name, value):
         if name in self._generics_:
@@ -50,31 +64,33 @@ class Circuit:
         self._genericsVals_.update(genericValue)
         return sym
 
-    def node(self, name):
-        if name in self._nodes_:
-            raise Exception("Node Already Exists")
-        
-        self._nodes_.add(name)    
-        return name
 
-    def nodes(self, *names):
+    def node(self, names):
+        names = re.split("\W+", names)
+
         nodes = list()
         for name in names:
-            nodes.append(self.node(name))
-        return nodes
+            if name in self._nodes_:
+                raise Exception("Node Already Exists")
+            self._nodes_.add(name) 
+            nodes.append(name)
+            
+        if len(nodes) ==  0:
+            return None
+        elif len(nodes) == 1:
+            return nodes[0]
+        else:
+            return nodes
 
-    def element(self, element):
-        if element.name in self._elements_.keys():
-            raise Exception("Element Already Exists")
-        
-        elem = {element.name : element}
-        self._elements_.update(elem)
-        return elem
 
-    def elements(self, *elements):
+    def element(self, *elements):
         elemSet = {}
-        for elem in elements:
-            elemSet.update(self.element(elem))
+        for element in elements:
+            if element.name in self._elements_.keys():
+                raise Exception("Element Already Exists")
+            elem = {element.name : element}
+            self._elements_.update(elem)
+            elemSet.update(elem)
         return elemSet
 
 
@@ -104,22 +120,6 @@ class Circuit:
         self._subcircuits_.update(subcircuit)
         return subcircuit
 
-    """
-    def currentThroughElement(self, name, id=0):
-        if self.compiled != {}:
-            return self.compiled["elements"][name].current(id)
-        else:
-            raise Exception("Not Yet Compiled")
-
-    def potentialOnElement(self, name, id=0):
-        if self.compiled != {}:
-            return self.compiled["elements"][name].potential(id)
-        else:
-            raise Exception("Not Yet Compiled")
-
-    def voltageOnElement(self, name, id0=0, id1=1):
-        return self.potentialOnElement(name, id0) - self.potentialOnElement(name, id1)
-    """
 
     def flatten(self, port_map = {}, generic_map={}, prefix=""):
         constants = deepcopy(self._constants_)
@@ -220,7 +220,6 @@ class Circuit:
 
 
 
-
     def compile(self, generics = {}):
         self._flattened_ = self.flatten(generic_map = generics)
 
@@ -235,7 +234,7 @@ class Circuit:
 
         elements = self._flattened_["elements"]
         ports = self._flattened_["ports"]
-        #ports = {name : nodes[port] for name, port in self._flattened_["ports"].items()}
+
         elementsCurrents = {}
         elementsVoltages = {}
 

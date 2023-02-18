@@ -11,20 +11,19 @@ var = sp.Symbol("Vin", real=True)
 circuit = Circuits.newCircuit("main")
 subcircuit = Circuits.newCircuit("sub")
 
-Vin = subcircuit.port("Vin")
-Vout = subcircuit.port("Vout")
-V1, V2 = subcircuit.nodes("V1", "V2")
+Vin, Vout = subcircuit.port("Vin, Vout")
+V1, V2 = subcircuit.node("V1, V2")
 
-subcircuit.elements(
+subcircuit.element(
                     Resistor("R1", {"V1" : Vcc, "V2" : V1}, R=1e-6),
                     NPN("Q1", {"Vc" : V1, "Vb" : Vin, "Ve" : Vout}),
                     PNP("Q2", {"Ve" : Vout, "Vb" : Vin, "Vc" : V2}),
                     Resistor("R2", {"V1" : V2, "V2" : -Vcc}, R=1e-6),
 )
 
-V1, V2, V3 = circuit.nodes("V1", "V2", "V3")
+V1, V2, V3 = circuit.node("V1, V2, V3")
 
-circuit.elements(
+circuit.element(
                         VoltageSource("Vg", {"V+" : V1, "V-" : Gnd}, Vdc = var),
                         Resistor("Rg", {"V1" : V1, "V2" : V2}, R = 50),
                         Resistor("Rout", {"V1" : V3, "V2" : Gnd}, R = 50),
