@@ -25,8 +25,8 @@ class Solver():
         Solver.circuits.update({name : circuit})
         return circuit
     
-    def compile(generics = {}):
-        return Solver.main(generics)
+    def compile(**values):
+        return Solver.main.compile(values)
     
 
     def solveDC(compiled, debugLog = True):

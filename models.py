@@ -2,29 +2,50 @@ from component import *
 
 #--------------------------------------------------------------------------------------------------------------------------
 
+class Potential(Component):
+
+    def potential(self, Vs, Is):
+        return [(
+                    [
+                        Eq(Vs["V"], 0),
+                        Eq(Is["V"], 0)
+                    ], 
+                    [
+                        Eq(Vs["V"], 0),
+                        Eq(Is["V"], 0)
+                    ],
+                    [
+
+                    ],
+                        {}
+                    )]
+
+    def allModes(self, Vs, Is):
+        return self.potential(Vs, Is)
+
+#--------------------------------------------------------------------------------------------------------------------------
+
 class VoltageSource(Component):
     """
     Default Values: \\
     Vdc = 0V \\
     Vac = 0V
     """
-
-    def getValues(self):
-        Vdc = self.values.get("Vdc", 0)
-        Vac = self.values.get("Vac", 0)
-        return (Vdc, Vac)
+    
+    default_values = {
+        "Vdc" : 0,
+        "Vac" : 0,
+    }
 
     def source(self, Vs, Is):
 
-        Vdc, Vac = self.getValues()
-
         return [(
                     [
-                        Eq(Vs["V+"] - Vs["V-"], Vdc),
+                        Eq(Vs["V+"] - Vs["V-"], self.values["Vdc"]),
                         *Component.ZeroCurrentSum(Is),
                     ], 
                     [
-                        Eq(Vs["V+"] - Vs["V-"], Vac),
+                        Eq(Vs["V+"] - Vs["V-"], self.values["Vac"]),
                         *Component.ZeroCurrentSum(Is),
                     ],
                     [
@@ -45,22 +66,20 @@ class CurrentSource(Component):
     Iac = 0A
     """
 
-    def getValues(self):
-        Idc = self.values.get("Idc", 0)
-        Iac = self.values.get("Iac", 0)
-        return (Idc, Iac)
+    default_values = {
+        "Idc" : 0,
+        "Iac" : 0,
+    }
 
     def source(self, Vs, Is):
 
-        Idc, Iac = self.getValues()
-
         return [(
                  [
-                    Eq(Is["V+"], -Idc),
+                    Eq(Is["V+"], -self.values["Idc"]),
                     *Component.ZeroCurrentSum(Is),
                  ], 
                  [
-                    Eq(Is["V-"], -Iac),
+                    Eq(Is["V-"], -self.values["Iac"]),
                     *Component.ZeroCurrentSum(Is),
                  ],
                  [
@@ -80,21 +99,19 @@ class Resistor(Component):
     R = 1k
     """
 
-    def getValues(self):
-        R = self.values.get("R", 1e3)
-        return (R)
+    default_values = {
+        "R" : 1e3
+    }
 
-    def resistor(self, Vs, Is):
-
-        R = self.getValues()
+    def resistor(self, Vs, Is): 
 
         return [(
                  [
-                    Eq(Is["V1"], (Vs["V1"] - Vs["V2"]) / R),
+                    Eq(Is["V1"], (Vs["V1"] - Vs["V2"]) / self.values["R"]),
                     *Component.ZeroCurrentSum(Is),
                  ],
                  [
-                    Eq(Is["V1"], (Vs["V1"] - Vs["V2"]) / R),
+                    Eq(Is["V1"], (Vs["V1"] - Vs["V2"]) / self.values["R"]),
                     *Component.ZeroCurrentSum(Is),
                  ], 
                  [
@@ -114,13 +131,11 @@ class Capacitor(Component):   #unfinished
     C = 1uF
     """
 
-    def getValues(self):
-        C = self.values.get("C", 1e-6)
-        return (C)
+    default_values = {
+        "C" : 1e-6
+    }
 
     def capacitor(self, Vs, Is):
-
-        C = self.getValues()
 
         return [(
                  [
@@ -146,13 +161,11 @@ class Inductor(Component):   #unfinished
     L = 1mH
     """
 
-    def getValues(self):
-        L = self.values.get("L", 1e-3)
-        return (L)
+    default_values = {
+        "L" : 1e-3
+    }
 
     def inductor(self, Vs, Is):
-
-        L = self.getValues()
 
         return [(
                  [
@@ -178,13 +191,11 @@ class Diode(Component):
     Vd = 0.6V
     """
 
-    def getValues(self):
-        Vd = self.values.get("Vd", 0.6)
-        return (Vd)
+    default_values = {
+        "Vd" : 0.6
+    }
 
     def Cut(self, Vs, Is):
-
-        Vd = self.getValues()
 
         return [(
                  [
@@ -194,18 +205,16 @@ class Diode(Component):
                     
                  ],
                  [
-                    Vs["Vp"] - Vs["Vn"] < Vd,
+                    Vs["Vp"] - Vs["Vn"] < self.values["Vd"],
                  ],
                     {self.name : "Cut"}
                  )]
 
     def Dir(self, Vs, Is):
 
-        Vd = self.getValues()
-
         return [(
                  [
-                    Eq(Vs["Vp"] - Vs["Vn"], Vd),
+                    Eq(Vs["Vp"] - Vs["Vn"], self.values["Vd"]),
                     *Component.ZeroCurrentSum(Is)
                  ], 
                  [
@@ -231,16 +240,14 @@ class NPN(Component):
     Br = 0.1
     """
 
-    def getValues(self):
-        Vdf = self.values.get("Vdf", 0.7)
-        Vdr = self.values.get("Vdr", 0.5)
-        Bf  = self.values.get("Bf", 100)
-        Br  = self.values.get("Br", 0.1)
-        return (Vdf, Vdr, Bf, Br)
+    default_values = {
+        "Vdf" : 0.6,
+        "Vdr" : 0.4,
+        "Bf"  : 100,
+        "Br"  : 0.1,
+    }
 
     def Cut(self, Vs, Is):
-
-        Vdf, Vdr, Bf, Br = self.getValues()
 
         return [(
                  [
@@ -250,61 +257,55 @@ class NPN(Component):
 
                  ],
                  [
-                    Vs["Vb"] - Vs["Ve"] < Vdf, 
-                    Vs["Vb"] - Vs["Vc"] < Vdr,
+                    Vs["Vb"] - Vs["Ve"] < self.values["Vdf"], 
+                    Vs["Vb"] - Vs["Vc"] < self.values["Vdr"],
                  ],
                     {self.name : "Cut"}
                  )]
 
     def Dir(self, Vs, Is):
 
-        Vdf, Vdr, Bf, Br = self.getValues()
-
         return [(
                  [
-                    Eq(Is["Vc"], Bf * Is["Vb"]),
-                    Eq(Is["Ve"], -(Bf + 1) * Is["Vb"]),
-                    Eq(Vs["Vb"] - Vs["Ve"], Vdf),
+                    Eq(Is["Vc"], self.values["Bf"] * Is["Vb"]),
+                    Eq(Is["Ve"], -(self.values["Bf"] + 1) * Is["Vb"]),
+                    Eq(Vs["Vb"] - Vs["Ve"], self.values["Vdf"]),
                  ],
                  [
 
                  ],
                  [
                     Is["Vb"] >= 0,
-                    Vs["Vb"] - Vs["Vc"] < Vdr,
+                    Vs["Vb"] - Vs["Vc"] < self.values["Vdr"],
                  ],
                     {self.name : "Fwd"}
                  )]
 
     def Inv(self, Vs, Is):
 
-        Vdf, Vdr, Bf, Br = self.getValues()
-
         return [(
                  [
-                    Eq(Is["Ve"], Br * Is["Vb"]),
-                    Eq(Is["Vc"], -(Br + 1) * Is["Vb"]),
-                    Eq(Vs["Vb"] - Vs["Vc"], Vdr),
+                    Eq(Is["Ve"], self.values["Br"] * Is["Vb"]),
+                    Eq(Is["Vc"], -(self.values["Br"] + 1) * Is["Vb"]),
+                    Eq(Vs["Vb"] - Vs["Vc"], self.values["Vdr"]),
                  ],
                  [
 
                  ],
                  [
                     Is["Vb"] >= 0,
-                    Vs["Vb"] - Vs["Ve"] < Vdf,
+                    Vs["Vb"] - Vs["Ve"] < self.values["Vdf"],
                  ],
                     {self.name : "Inv"}
                  )]
 
     def Sat(self, Vs, Is):
 
-        Vdf, Vdr, Bf, Br = self.getValues()
-
         return [(
                  [
                     *Component.ZeroCurrentSum(Is),
-                    Eq(Vs["Vb"] - Vs["Ve"], Vdf),
-                    Eq(Vs["Vb"] - Vs["Vc"], Vdr),
+                    Eq(Vs["Vb"] - Vs["Ve"], self.values["Vdf"]),
+                    Eq(Vs["Vb"] - Vs["Vc"], self.values["Vdr"]),
                  ],
                  [
 
@@ -312,8 +313,8 @@ class NPN(Component):
                  [
                     Is["Vb"] >= 0,
                     
-                    Is["Vc"] <= Bf * Is["Vb"],
-                    Is["Ve"] <= Br * Is["Vb"],
+                    Is["Vc"] <= self.values["Bf"] * Is["Vb"],
+                    Is["Ve"] <= self.values["Br"] * Is["Vb"],
                  ],
                     {self.name : "Sat"}
                  )]
@@ -326,23 +327,20 @@ class NPN(Component):
 class PNP(Component):
     """
     Default Values: \\
-    Vdf = 0.7V \\
-    Vdr = 0.5V \\
+    Vdf = 0.6V \\
+    Vdr = 0.4V \\
     Bf = 100 \\
     Br = 0.1
     """
 
-    def getValues(self):
-        Vdf = self.values.get("Vdf", 0.7)
-        Vdr = self.values.get("Vdr", 0.5)
-        Bf  = self.values.get("Bf", 100)
-        Br  = self.values.get("Br", 0.1)
-        return (Vdf, Vdr, Bf, Br)
+    default_values = {
+        "Vdf" : 0.6,
+        "Vdr" : 0.4,
+        "Bf"  : 100,
+        "Br"  : 0.1,
+    }
 
     def Cut(self, Vs, Is):
-
-        Vdf, Vdr, Bf, Br = self.getValues()
-
         return [(
                  [
                     *Component.OpenConnection(Vs, Is),
@@ -351,61 +349,52 @@ class PNP(Component):
 
                  ],
                  [
-                    Vs["Ve"] - Vs["Vb"] < Vdf,
-                    Vs["Vc"] - Vs["Vb"] < Vdr,
+                    Vs["Ve"] - Vs["Vb"] < self.values["Vdf"],
+                    Vs["Vc"] - Vs["Vb"] < self.values["Vdr"],
                  ],
                     {self.name : "Cut"}
                  )]
         
     def Dir(self, Vs, Is):
-
-        Vdf, Vdr, Bf, Br = self.getValues()
-
         return [(
                  [
-                    Eq(Is["Ve"], -(Bf + 1) * Is["Vb"]),
-                    Eq(Is["Vc"], Bf * Is["Vb"]),
-                    Eq(Vs["Ve"] - Vs["Vb"], Vdf),
+                    Eq(Is["Ve"], -(self.values["Bf"] + 1) * Is["Vb"]),
+                    Eq(Is["Vc"], self.values["Bf"] * Is["Vb"]),
+                    Eq(Vs["Ve"] - Vs["Vb"], self.values["Vdf"]),
                  ],
                  [
 
                  ],
                  [
                     Is["Vb"] <= 0,
-                    Vs["Vc"] - Vs["Vb"] < Vdr,
+                    Vs["Vc"] - Vs["Vb"] < self.values["Vdr"],
                  ],
                     {self.name : "Fwd"}
                  )]
 
     def Inv(self, Vs, Is):
-
-        Vdf, Vdr, Bf, Br = self.getValues()
-
         return [(
                  [
-                    Eq(Is["Vc"], -(Br + 1) * Is["Vb"]),
-                    Eq(Is["Ve"], Br * Is["Vb"]),
-                    Eq(Vs["Vc"] - Vs["Vb"], Vdr),
+                    Eq(Is["Vc"], -(self.values["Br"] + 1) * Is["Vb"]),
+                    Eq(Is["Ve"], self.values["Br"] * Is["Vb"]),
+                    Eq(Vs["Vc"] - Vs["Vb"], self.values["Vdr"]),
                  ],
                  [
 
                  ],
                  [
                     Is["Vb"] <= 0,
-                    Vs["Ve"] - Vs["Vb"] < Vdf,
+                    Vs["Ve"] - Vs["Vb"] < self.values["Vdf"],
                  ],
                     {self.name : "Inv"}
                  )]
 
     def Sat(self, Vs, Is):
-
-        Vdf, Vdr, Bf, Br = self.getValues()
-
         return [(
                  [
                     *Component.ZeroCurrentSum(Is),
-                    Eq(Vs["Ve"] - Vs["Vb"], Vdf),
-                    Eq(Vs["Vc"] - Vs["Vb"], Vdr),
+                    Eq(Vs["Ve"] - Vs["Vb"], self.values["Vdf"]),
+                    Eq(Vs["Vc"] - Vs["Vb"], self.values["Vdr"]),
                  ],
                  [
 
@@ -413,8 +402,8 @@ class PNP(Component):
                  [
                     Is["Vb"] <= 0,
                 
-                    Is["Vc"] >= Bf * Is["Vb"],
-                    Is["Ve"] >= Br * Is["Vb"],
+                    Is["Vc"] >= self.values["Bf"] * Is["Vb"],
+                    Is["Ve"] >= self.values["Br"] * Is["Vb"],
                  ],
                     {self.name : "Sat"}
                  )]
@@ -430,18 +419,15 @@ class OpAmp(Component):
     Av = inf
     """
 
-    def getValues(self):
-        Av = self.values.get("Av", oo)
-        return (Av)
+    default_values = {
+        "Av" : oo,
+    }
 
     def Dir(self, Vs, Is):
-
-        Av = self.getValues()
-
         return [(
                  [
                     *Component.ZeroCurrents({Is["V+"], Is["V-"], Is["Vcc"], Is["Vee"]}),
-                    Eq(Vs["Vop"] / Av, Vs["V+"] - Vs["V-"]),
+                    Eq(Vs["Vop"] / self.values["Av"], Vs["V+"] - Vs["V-"]),
                  ],
                  [
                     
@@ -454,9 +440,6 @@ class OpAmp(Component):
                  )]
 
     def SatMax(self, Vs, Is):
-
-        Av = self.getValues()
-
         return [(
                  [
                     *Component.ZeroCurrents({Is["V+"], Is["V-"], Is["Vcc"], Is["Vee"]}),
@@ -466,15 +449,12 @@ class OpAmp(Component):
 
                  ],
                  [
-                    Vs["V+"] - Vs["V-"] > Vs["Vcc"] / Av
+                    Vs["V+"] - Vs["V-"] > Vs["Vcc"] / self.values["Av"]
                  ],
                     {self.name : "SatMax"}
                  )]
 
     def SatMin(self, Vs, Is):
-
-        Av = self.getValues()
-
         return [(
                  [
                     *Component.ZeroCurrents({Is["V+"], Is["V-"], Is["Vcc"], Is["Vee"]}),
@@ -484,7 +464,7 @@ class OpAmp(Component):
 
                  ],
                  [
-                    Vs["V+"] - Vs["V-"] < Vs["Vee"] / Av
+                    Vs["V+"] - Vs["V-"] < Vs["Vee"] / self.values["Av"]
                  ],
                     {self.name : "SatMin"}
                  )]

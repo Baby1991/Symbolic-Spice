@@ -1,5 +1,7 @@
 from node import Node
 from sympy import Eq, oo
+from copy import deepcopy
+from pprint import pformat
 
 #--------------------------------------------------------------------------------------------------------------------------
 
@@ -10,14 +12,39 @@ class Component:
     I1\\
     I2\\
     """
+    
+    default_values = {
+        
+    }
+    
+    values = {
+        
+    }
 
     def __init__(self, name, nodes, **values) -> None:
         self.name = name
         self.nodes = nodes
-        self.Vs = {}
-        self.Is = {}
-        self.values = values
-
+        self.values = deepcopy(self.default_values)
+        self.values.update(values)
+    
+    def __repr__(self) -> dict:
+        return str({
+            "name" : self.name,
+            "type" : type(self).__name__,
+            "nodes" : self.nodes,
+            "values" : self.values,
+        })
+    
+    """
+    def __repr__(self) -> str:
+        return pformat({
+            "name" : self.name,
+            "type" : type(self),
+            "nodes" : self.nodes,
+            "values" : self.values,
+        })
+    """
+        
     """
 
     def setCurrents(self, Is):
@@ -61,5 +88,8 @@ class Component:
                  ],
                     {}
                  )]
+        
+    def __call__(self, Vs, Is):
+        return self.allModes(Vs, Is)
     
 #--------------------------------------------------------------------------------------------------------------------------
