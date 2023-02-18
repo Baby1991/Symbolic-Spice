@@ -1,4 +1,3 @@
-from circuits import *
 from solver import *
 
 from models import NPN, PNP, Diode, Resistor, VoltageSource, CurrentSource, OpAmp
@@ -8,8 +7,8 @@ Vcc = 5
 
 var = sp.Symbol("Vin", real=True)
 
-circuit = Circuits.newCircuit("main")
-subcircuit = Circuits.newCircuit("sub")
+circuit = Solver.newCircuit("main")
+subcircuit = Solver.newCircuit("sub")
 
 Vin, Vout = subcircuit.port("Vin, Vout")
 V1, V2 = subcircuit.node("V1, V2")
@@ -31,7 +30,7 @@ circuit.element(
 
 circuit.subcircuit(subcircuit, "amp", {"Vin" : V2, "Vout" : V3})
 
-compiled = Circuits.compile()
+compiled = Solver.compile()
 
 print("Nodes: ", compiled["nodes"])
 print("Voltages: ", compiled["voltages"])

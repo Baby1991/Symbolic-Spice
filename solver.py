@@ -3,7 +3,31 @@ import matplotlib.pyplot as plt
 import numpy as np
 import itertools
 
+from circuit import Circuit
+
+Gnd = 0
+
 class Solver():
+
+    circuits = {}
+    main = None
+
+    def setMain(name):
+        main = Solver.circuits[name]
+        return main
+
+    def newCircuit(name):
+        if name in Solver.circuits.keys():
+            raise Exception("Circuit Alreadt Exists")
+        circuit = Circuit()
+        if Solver.circuits == {}:
+            Solver.main = circuit
+        Solver.circuits.update({name : circuit})
+        return circuit
+    
+    def compile(generics = {}):
+        return Solver.main(generics)
+    
 
     def solveDC(compiled, debugLog = True):
 
