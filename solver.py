@@ -1,11 +1,16 @@
-from sympy import solve, oo, Interval, Float, simplify, preorder_traversal, Set, Union, EmptySet
+from sympy import solve, oo, Interval, Float, simplify, preorder_traversal, Set, Union, EmptySet, Symbol
+import sympy as sp
+
 import matplotlib.pyplot as plt
 import numpy as np
 import itertools
+from copy import deepcopy
 
 from circuit import Circuit
 
 Gnd = 0
+s = Symbol("s")
+t = Symbol("t", positive=True)
 
 class Solver():
 
@@ -13,23 +18,26 @@ class Solver():
     main = None
 
     def setMain(name):
-        main = Solver.circuits[name]
-        return main
+        Solver.main = Solver.circuits[name]
+        return Solver.main
 
-    def newCircuit(name):
-        if name in Solver.circuits.keys():
-            raise Exception("Circuit Alreadt Exists")
+    def Circuit(name):
         circuit = Circuit()
         if Solver.circuits == {}:
             Solver.main = circuit
         Solver.circuits.update({name : circuit})
         return circuit
     
+    def __call__():
+        return Solver.main
+    
     def compile(**values):
         return Solver.main.compile(values)
     
 
-    def solveDC(compiled, debugLog = True):
+    def solveOP(compiled, debugLog = True):
+
+        compiled = deepcopy(compiled)
 
         variables        = compiled["variables"]
         circuitEquations = compiled["nodeEquations"]
@@ -53,8 +61,9 @@ class Solver():
             equations = list(circuitEquations)
             conditions = []
             states = {}
-            for formulaDC, formulaAC, condition, state in perm:
-                equations += formulaDC
+            for formulaOP, formulaTran, condition, state in perm:
+                       
+                equations += formulaOP
                 conditions += condition
                 if state:
                     states.update(state)
@@ -109,6 +118,127 @@ class Solver():
                 print("-------------------------------------")
 
         return solutions
+
+
+    
+    def solveTran(compiled, tmax, tstep = 0.01, debugLog=True):
+        
+        compiled = deepcopy(compiled)
+        
+        variables        = compiled["variables"]
+        circuitEquations = compiled["nodeEquations"]
+        elements         = compiled["elements"]
+        voltages         = compiled["voltages"]
+        currents         = compiled["currents"]
+
+        """
+        if debugLog:
+            print(variables)
+            print(circuitEquations)
+            print(elements)
+            print(voltages)
+            print(currents)
+        """
+
+        solutions = []
+
+        time = 0
+        while time <= tmax:
+            
+            t_start = time
+            local_time = 0
+            
+            current_solutions = []
+            
+            permutations = itertools.product(*[elements[key].allModes(voltages[key], currents[key]) for key in elements.keys()])
+            for perm in permutations:
+
+                equations = list(circuitEquations)
+                conditions = []
+                states = {}
+                names = set()
+                
+                for formulaOP, formulaTran, condition, (name, state) in perm:
+                                    
+                    if formulaTran == []:
+                        formulaTran = formulaOP
+                    equations += formulaTran
+                    
+                    conditions += condition
+                    names.add(name)
+                    
+                    if state:
+                        states.update({name : state})
+
+                if debugLog:
+                    print(names)
+                    print(equations)
+                    print(conditions)
+                    print(states)
+                
+                try:
+                    sols = solve(equations, variables, dict=True)
+                    
+                    for sol in sols:
+                        #print(sol)
+                        #print("-------------------------------------------------")
+                        
+                        sol_t = {var : sp.inverse_laplace_transform(eq.apart(s), s, t) for var, eq in sol.items()}
+                        #print(sol_t)
+                            
+                        #print("-------------------------------------------------")
+                            
+                        sol_t0 = {var : eq.subs({t : local_time}) for var, eq in sol_t.items()}
+                        #print(sol_t0)
+                        #print("-------------------------------------------------")
+                        
+                        ineqs = [ineq.subs(sol_t0) for ineq in conditions]
+                        #print(ineqs)
+                        #print("-------------------------------------------------")
+                        
+                        if all(ineqs):
+                            current_solutions.append((names, states, sol_t, conditions))
+                        
+                        #print("*****************************************")
+
+                except Exception as e:
+                    print(e)
+            
+            names, states, sol_t, conditions = current_solutions[0]
+            print(names, states, sol_t, conditions)
+            
+            ineqs = [True]
+            while all(ineqs) and time <= tmax:
+                sol_t0 = {var : eq.subs({t : local_time}) for var, eq in sol_t.items()}
+                ineqs = [ineq.subs(sol_t0) for ineq in conditions]
+                
+                local_time += tstep
+                time += tstep
+            
+            sol_t0 = {var : eq.subs({t : local_time}) for var, eq in sol_t.items()}
+            for name in names:
+                
+                for key, sym in voltages[name].items():
+                    elements[name].values.update({f"{key}_0" : sol_t0.get(sym, 0)})
+                    
+                for key, sym in currents[name].items():
+                    elements[name].values.update({f"I_{key}_0" : sol_t0[sym]})
+            
+            sol_t = {var : eq.subs({t : t - t_start}) for var, eq in sol_t.items()}
+            solutions.append((Interval(t_start, time - tstep), sol_t, states))
+            
+            print(time)
+            print("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
+                
+            """
+            
+            
+                
+            """
+        
+        return solutions
+    
+    
 
     def printModel(model, var):
         for interval, solution, state in model:
@@ -186,3 +316,21 @@ def plotMeasurments(solutions, minx, maxx, step, measurments, inputVar):
 
                 if xs and ys:
                     plt.scatter(xs, ys, label=f"{measurmentName} : {repr(formula)}\n{state}")
+                    
+def plotTranMeasurments(solutions, mint, maxt, step, measurments):
+    
+    max_scale = Interval(mint, maxt)
+
+    for measurment, measurmentName in measurments:
+
+        for interval, solution, state in solutions:
+            interval = interval.intersect(max_scale)
+
+            ts = np.arange(interval.start, interval.end, step)
+            
+            values = [{var : value.subs({t : time}) for var, value in solution.items()} for time in ts]
+            
+            ys = [measurment(value) for value in values]
+            
+            plt.plot(ts, ys, label=f"{measurmentName} : {state}")
+                

@@ -1,9 +1,10 @@
 from node import Node
-from sympy import Eq, oo
+from sympy import Eq, oo, Symbol
 from copy import deepcopy
-from pprint import pformat
 
 #--------------------------------------------------------------------------------------------------------------------------
+
+s = Symbol("s")
 
 class Component:
     """
@@ -86,7 +87,7 @@ class Component:
                  [
 
                  ],
-                    {}
+                    (self.name, "")
                  )]
         
     def __call__(self, Vs, Is):
