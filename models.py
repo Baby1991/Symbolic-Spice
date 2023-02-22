@@ -3,68 +3,7 @@ from component import *
 # --------------------------------------------------------------------------------------------------------------------------
 # Physical Constants
 
-kB_e = 86.17333262e-6  # Boltzmann / Elementary Charge
-
-# --------------------------------------------------------------------------------------------------------------------------
-
-
-class Potential(Component):
-    """
-    Default Values: \\
-    Vdc = 0V \\
-    Vac = 0V \\
-    V_s = 0V \\
-    """
-
-    default_values = {
-        "Vdc": 0,
-        "Vac": 0,
-        "V_s": 0,
-    }
-
-    def allModes(self, Vs, Is):
-        return {
-
-            "": {
-                "OP": {
-                    "equations": [
-                        Eq(Vs["V"], self.values["Vdc"]),
-                    ],
-                    "conditions": [
-
-                    ]
-                },
-
-                "Laplace": {
-                    "equations": [
-                        Eq(Vs["V"], self.values["V_s"] +
-                           self.values.get("V_0", 0) / s),
-                    ],
-                    "conditions": [
-
-                    ]
-                },
-
-                "AC+DC": {
-                    "equations": [
-                        Eq(Vs["V"], self.values["Vac"] + self.values["Vdc"]),
-                    ],
-                    "conditions": [
-
-                    ]
-                },
-
-                "SmallSignal": {
-                    "equations": [
-                        Eq(Vs["V"], self.values["Vac"]),
-                    ],
-                    "conditions": [
-
-                    ]
-                }
-
-            }
-        }
+kB_e = 86.173_332_62e-6  # Boltzmann / Elementary Charge
 
 # --------------------------------------------------------------------------------------------------------------------------
 

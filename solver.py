@@ -12,7 +12,7 @@ from component import Component
 
 Gnd = 0
 s = Symbol("s")
-t = Symbol("t", positive=True)
+t = Symbol("t", real=True, positive=True)
 
 
 class Solver():
@@ -225,13 +225,30 @@ class Solver():
                     sols = solve(equations, variables, dict=True)
 
                     for sol in sols:
-                        #print(sol)
-                        #print("-------------------------------------------------")
-
-                        sol_t = {var: sp.inverse_laplace_transform(
-                            eq.apart(s), s, t) for var, eq in sol.items()}
                         
-                        #print(sol_t)
+                        for key in sol.keys():
+                            print(key, sol[key])
+                        
+                        
+                        sol = {var: 0 if abs(eq.subs({s : 1})) < 1e-6 else eq for var, eq in sol.items()}
+                        
+                        for key in sol.keys():
+                            for a in preorder_traversal(sol[key]):
+                                if isinstance(a, Float):
+                                    if abs(a) < 1:
+                                        sol[key] = sol[key].subs({a : 0})
+                        
+                        sol = {var: sp.simplify(sp.simplify(eq).apart(s)) for var, eq in sol.items()}
+                        
+                        
+                        
+                        print(sol)
+                        print("-------------------------------------------------")
+
+                        sol_t = {var: sp.re(sp.inverse_laplace_transform(
+                            eq, s, t)) for var, eq in sol.items()}
+                        
+                        print(sol_t)
                         #print("-------------------------------------------------")
 
                         sol_t0 = {var: eq.subs({t: local_time})
@@ -239,6 +256,7 @@ class Solver():
                         
                         #print(sol_t0)
                         #print("-------------------------------------------------")
+                        print("*****************************************")
 
                         ineqs = [ineq.subs(sol_t0) for ineq in conditions]
                         #print(ineqs)
