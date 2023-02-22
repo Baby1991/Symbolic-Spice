@@ -186,7 +186,7 @@ class Circuit:
             elementsVoltages.update({name: elementVoltages})
             elementsCurrents.update({name: elementCurrents})
 
-        nodeEquations = {node.equations() for node in nodes.values()}
+        nodeEquations = [node.equations() for node in nodes.values()]
         nodes = {name: node() for name, node in nodes.items()}
 
         compiled = {"nodes": nodes, "nodeEquations": nodeEquations, "elements": elements,
