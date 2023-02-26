@@ -1,5 +1,5 @@
 from node import Node
-from sympy import Eq, oo, Symbol
+from sympy import Eq, oo, Symbol, exp
 from copy import deepcopy
 
 # --------------------------------------------------------------------------------------------------------------------------

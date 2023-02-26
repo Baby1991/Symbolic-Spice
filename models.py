@@ -5,6 +5,8 @@ from component import *
 
 kB_e = 86.173_332_62e-6  # Boltzmann / Elementary Charge
 
+delta = 1e-6
+
 # --------------------------------------------------------------------------------------------------------------------------
 
 
@@ -38,8 +40,9 @@ class VoltageSource(Component):
 
                 "Laplace": {
                     "equations": [
-                        Eq(Vs["V+"] - Vs["V-"], self.values["V_s"] +
-                           (self.values.get("V+_0", 0) - self.values.get("V-_0", 0)) / s),
+                        Eq(Vs["V+"] - Vs["V-"], self.values["V_s"] * exp(s * self.values.get("t_0", 0))
+                           # + (self.values.get("V+_0", 0) - self.values.get("V-_0", 0)) / s
+                        ),
                         *Component.ZeroCurrentSum(Is),
                     ],
                     "conditions": [
@@ -104,8 +107,9 @@ class CurrentSource(Component):
 
                 "Laplace": {
                     "equations": [
-                        Eq(Is["V-"], self.values["I_s"] +
-                           self.values.get("I_V+_0", 0) / s),
+                        Eq(Is["V-"], self.values["I_s"] * exp(s * self.values.get("t_0", 0))
+                           # + self.values.get("I_V+_0", 0) / s
+                        ),
                         *Component.ZeroCurrentSum(Is),
                     ],
                     "conditions": [
@@ -364,7 +368,7 @@ class Diode(Component):
                         *Component.OpenConnection(Vs, Is)
                     ],
                     "conditions": [
-                        Vs["Vp"] - Vs["Vn"] <= self.values["Vd"]
+                        Vs["Vp"] - Vs["Vn"] < self.values["Vd"]
                     ]
                 },
 
@@ -410,7 +414,8 @@ class Diode(Component):
                         *Component.ZeroCurrentSum(Is)
                     ],
                     "conditions": [
-                        Is["Vp"] > 0
+                        Is["Vp"] >= 0
+                        #Is["Vp"] > -delta
                     ]
                 },
 
