@@ -1,5 +1,7 @@
 from component import *
 
+from inverseLaplace import Laplace
+
 # --------------------------------------------------------------------------------------------------------------------------
 # Physical Constants
 
@@ -15,13 +17,13 @@ class VoltageSource(Component):
     Default Values: \\
     Vdc = 0V \\
     Vac = 0V \\
-    V_s = 0V \\
+    V_t = 0V \\
     """
 
     default_values = {
         "Vdc": 0,
         "Vac": 0,
-        "V_s": 0,
+        "V_t": 0,
     }
 
     def allModes(self, Vs, Is):
@@ -40,8 +42,9 @@ class VoltageSource(Component):
 
                 "Laplace": {
                     "equations": [
-                        Eq(Vs["V+"] - Vs["V-"], self.values["V_s"] * exp(s * self.values.get("t_0", 0))
-                           # + (self.values.get("V+_0", 0) - self.values.get("V-_0", 0)) / s
+                        Eq(
+                            #Vs["V+"] - Vs["V-"], self.values["V_s"] * exp(s * self.values.get("t_0", 0))
+                            Vs["V+"] - Vs["V-"],  Laplace(self.values["V_t"], self.values.get("t_0", 0))
                         ),
                         *Component.ZeroCurrentSum(Is),
                     ],
@@ -82,13 +85,13 @@ class CurrentSource(Component):
     Default Values: \\
     Idc = 0A \\
     Iac = 0A \\
-    I   = 0A \\
+    I_t = 0A \\
     """
 
     default_values = {
         "Idc": 0,
         "Iac": 0,
-        "I_s": 0,
+        "I_t": 0,
     }
 
     def allModes(self, Vs, Is):
@@ -107,8 +110,10 @@ class CurrentSource(Component):
 
                 "Laplace": {
                     "equations": [
-                        Eq(Is["V-"], self.values["I_s"] * exp(s * self.values.get("t_0", 0))
+                        Eq(
+                            #Is["V-"], self.values["I_s"] * exp(s * self.values.get("t_0", 0))
                            # + self.values.get("I_V+_0", 0) / s
+                           Is["V-"],  Laplace(self.values["I_t"], self.values.get("t_0", 0))
                         ),
                         *Component.ZeroCurrentSum(Is),
                     ],

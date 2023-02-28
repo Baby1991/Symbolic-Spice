@@ -3,10 +3,7 @@ from copy import deepcopy
 
 s = sp.Symbol("s")
 #t = Symbol("t", real=True, positive=True)
-t = sp.Symbol("t", real=True, positive=True)
-
-#def Heaviside_(t):
-#    return sp.Float(1.0) if t >= 0 else sp.Float(0.0)
+t = sp.Symbol("t", real=True, nonnegative=True)
 
 class Heaviside_(sp.Function):
     @classmethod
@@ -31,6 +28,11 @@ class DiracDelta_(sp.Function):
         _t = printer._print(t)
         return r'\delta(%s)' % (_t)
 
+def Laplace(x, t0 = 0):
+    #func = x.subs({t : t + t0}) * sp.Heaviside(t, 1.0)
+    func = x.subs({t : t + t0}) * sp.Heaviside(t)
+    return sp.laplace_transform(func, t, s, noconds=True)
+
 
 def discriminate(exp):
     for a in sp.preorder_traversal(exp):
@@ -49,12 +51,10 @@ def inverseLaplace(exp, debug = False):
     match(type(exp)):
         
         case sp.Float:
-            print(exp)
             exp_t = sp.re(sp.inverse_laplace_transform(exp, s, t))
             #exp_t = exp_t.subs({sp.Heaviside(t) : 1})
             
         case sp.Integer:
-            print(exp)
             exp_t = sp.re(sp.inverse_laplace_transform(exp, s, t))
             #exp_t = exp_t.subs({sp.Heaviside(t) : 1})
                 
@@ -68,7 +68,6 @@ def inverseLaplace(exp, debug = False):
                 if type(exp) == sp.Add:
                     exp_t = inverseLaplace(exp, debug=debug)
                 else:
-                    print(exp)
                     exp_t = sp.re(sp.inverse_laplace_transform(exp, s, t))
                     #exp_t = exp_t.subs({sp.Heaviside(t) : 1})
             else:
@@ -163,6 +162,9 @@ def inverseLaplace(exp, debug = False):
                                         print(a, type(a))
                                         raise Exception("type(n) Unexpected")
                         
+                    case sp.Add:
+                        pass
+                        
                     case _:
                         print(denom, type(denom))
                         raise Exception("type(n) Unexpected")
@@ -173,7 +175,6 @@ def inverseLaplace(exp, debug = False):
             if type(exp) == sp.Add:
                 exp_t = inverseLaplace(exp, debug=debug)
             else:
-                print(exp, diff, shift)
                 exp_t = sp.re(sp.inverse_laplace_transform(exp, s, t))
                 #exp_t = exp_t.subs({sp.Heaviside(t) : 1})
             
@@ -186,6 +187,4 @@ def inverseLaplace(exp, debug = False):
     
     return exp_t
         
-#print(type(1.0 * s))
-
-#print(inverseLaplace(30.0*s**3/(5000000.0*s**4 + 50500000.0*s**3 + 50000000.0*s**2 + 505000000.0*s) - 100.0*s**2*sp.exp(0.41*s)/(5000000.0*s**4 + 50500000.0*s**3 + 50000000.0*s**2 + 505000000.0*s) + 3.0*s**2/(5000000.0*s**4 + 50500000.0*s**3 + 50000000.0*s**2 + 505000000.0*s) - 10.0*s*sp.exp(0.41*s)/(5000000.0*s**4 + 50500000.0*s**3 + 50000000.0*s**2 + 505000000.0*s) + 300.0*s/(5000000.0*s**4 + 50500000.0*s**3 + 50000000.0*s**2 + 505000000.0*s) + 30.0/(5000000.0*s**4 + 50500000.0*s**3 + 50000000.0*s**2 + 505000000.0*s), debug=True))
+        

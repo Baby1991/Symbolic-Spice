@@ -13,8 +13,8 @@ from component import Component
 
 Gnd = 0
 s = sp.Symbol("s")
-#t = sp.Symbol("t", real=True, nonnegative=True)
-t = sp.Symbol("t", real=True, positive=True)
+t = sp.Symbol("t", real=True, nonnegative=True)
+#t = sp.Symbol("t", real=True, positive=True)
 
 
 class Solver():
@@ -182,9 +182,7 @@ class Solver():
 
         return solutions
 
-    def solveLaplace(compiled, tmax, debugLog=True):
-
-        tstep = tmax / 1000
+    def solveLaplace(compiled, tmax, tstep = 0.1, debugLog=True):
 
         compiled = deepcopy(compiled)
 
@@ -245,20 +243,27 @@ class Solver():
                             #print(sol)
                         
                         for var, expr in sol.items():
+                            expr = sp.expand(sp.simplify(expr))
+                            
                             if debugLog:
                                 print(var, expr)
                                 #print()
-                            
+                               
                             expr_t = sp.simplify(inverseLaplace(expr))
                             
-                            #if debugLog:
-                            #    print(var, expr_t)
+                            if debugLog:
+                                print(var, expr_t)
                             
                             for a in preorder_traversal(expr_t):
                                 if isinstance(a, sp.Heaviside):
                                     expr_t = expr_t.subs({sp.Heaviside(a.args[0]) : sp.Heaviside(a.args[0], 1.0)})
                                 elif isinstance(a, sp.DiracDelta):
-                                    expr_t = expr_t.subs({sp.DiracDelta(a.args[0]) : DiracDelta_(a.args[0])})
+                                    if len(a.args) > 1:
+                                        #expr_t = expr_t.subs({sp.DiracDelta(a.args[0], a.args[1]) : sp.Float(0.0)})
+                                        expr_t = expr_t.subs({sp.DiracDelta(a.args[0], a.args[1]) : DiracDelta_(a.args[0])})
+                                    else:
+                                        #expr_t = expr_t.subs({sp.DiracDelta(a.args[0]) : sp.Float(0.0)})
+                                        expr_t = expr_t.subs({sp.DiracDelta(a.args[0]) : DiracDelta_(a.args[0])})
                             
                             """
                             for a in preorder_traversal(expr_t):
@@ -285,7 +290,8 @@ class Solver():
                                 print("-----------------")
                         
                         
-                        ineqs_ = sp.lambdify(t, ineqs({var : sp.Piecewise((0, abs(expr) < 1e-6), (expr, True)) for var, expr in sol_t.items()}), "numpy")
+                        #ineqs_ = sp.lambdify(t, ineqs({var : sp.Piecewise((0, abs(expr) < 1e-6), (expr, True)) for var, expr in sol_t.items()}), "numpy")
+                        ineqs_ = lambda t_ : ineqs({var : expr.subs({t : t_}) for var, expr in sol_t.items()})
                         
                         if debugLog:
                             print("-------------------------------------------------")
@@ -293,12 +299,12 @@ class Solver():
 
                         if debugLog:
                             print(conditions)
-                            print(ineqs_(0))
+                            print(ineqs_(0.0))
                             #print(ineqs(sol_t0))
                             print("*****************************************")
                         #print("-------------------------------------------------")
 
-                        if all(ineqs_(0)):
+                        if all(ineqs_(0.0)):
                             #current_solutions.append(
                             #    (states, sol_t, conditions))
                             current_solutions.append(
@@ -315,74 +321,80 @@ class Solver():
                     
                 #print("*****************************************")
 
-            #states, sol_t, conditions = current_solutions[0]
-            states, sol_t, ineqs_ = current_solutions[0]
-            previous_permutation = states
-            #print(states, sol_t, conditions)
+            try:
+                #states, sol_t, conditions = current_solutions[0]
+                states, sol_t, ineqs_ = current_solutions[0]
+                previous_permutation = states
+                #print(states, sol_t, conditions)
 
-            #ineqs_ = sp.lambdify(t, ineqs(sol_t), "numpy")
+                #ineqs_ = sp.lambdify(t, ineqs(sol_t), "numpy")
 
-            #if debugLog:
-            print(time, "\t\t\t\r", end="")
-
-            while all(ineqs_(local_time)) and time <= tmax:
-                local_time += tstep
-                time += tstep
+                #if debugLog:
                 print(time, "\t\t\t\r", end="")
-            
-            if not all(ineqs_(local_time)):
-                print(time, "\t\t\t")
 
-                currStep = tstep / 2
-                i = 0
+                while all(ineqs_(local_time)) and time <= tmax:
+                    local_time += tstep
+                    time += tstep
+                    print(time, "\t\t\t\r", end="")
                 
-                while True:
-                    local_time -= currStep
-                    time -= currStep
+                if not all(ineqs_(local_time)):
+                    print(time, "\t\t\t")
+
+                    currStep = tstep / 2
+                    i = 0
                     
-                    if not all(ineqs_(local_time)):
-                        if i > 10:
-                            break
-                    else:
-                        if i > 1000:
-                            break
+                    while True:
+                        local_time -= currStep
+                        time -= currStep
+                        
+                        if not all(ineqs_(local_time)):
+                            if i > 10:
+                                break
                         else:
-                            local_time += currStep
-                            time += currStep
-                    
-                    i += 1    
-                    currStep = currStep / 2
-                    
-            
-            
-            
-            sol_t0 = {var: eq.subs({t: local_time})
-                      for var, eq in sol_t.items()}
-            
-            for name, _ in states:
+                            if i > 1000:
+                                break
+                            else:
+                                local_time += currStep
+                                time += currStep
+                        
+                        i += 1    
+                        currStep = currStep / 2
+                        
+                
+                
+                
+                sol_t0 = {var: eq.subs({t: local_time})
+                        for var, eq in sol_t.items()}
+                
+                for name, _ in states:
 
-                for key, sym in voltages[name].items():
-                    elements[name].values.update(
-                        {f"{key}_0": sol_t0.get(sym, 0)})
+                    for key, sym in voltages[name].items():
+                        elements[name].values.update(
+                            {f"{key}_0": sol_t0.get(sym, 0)})
 
-                for key, sym in currents[name].items():
-                    elements[name].values.update({f"I_{key}_0": sol_t0.get(sym, 0)})
-                    
-                elements[name].values.update({f"t_0" : time})
+                    for key, sym in currents[name].items():
+                        elements[name].values.update({f"I_{key}_0": sol_t0.get(sym, 0)})
+                        
+                    elements[name].values.update({f"t_0" : time})
 
-            sol_t = {var: eq.subs({t: t - t_start})
-                     for var, eq in sol_t.items()}
-            
-            
-            if time <= tmax:
-                solutions.append((Interval.Ropen(t_start, time), sol_t, states))
-            else:
-                solutions.append((Interval(t_start, time), sol_t, states))
+                #sol_t = {var: eq.subs({t: t - t_start})
+                #         for var, eq in sol_t.items()}
+                
+                #for var, eq in sol_t.items():
+                #    print(var, eq)
+                
+                if time <= tmax:
+                    solutions.append((Interval.Ropen(t_start, time), sol_t, states))
+                else:
+                    solutions.append((Interval(t_start, time), sol_t, states))
 
-    
-            print(time, "\t\t\t")
-            print("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
-    
+        
+                print(time, "\t\t\t")
+                print("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
+
+            except IndexError:
+                print("Index Error")
+                break
 
         return solutions
 
@@ -891,13 +903,19 @@ def plotTranMeasurments(solutions, mint, maxt, step, measurments):
                 ts = np.arange(float(interval.start), float(interval.end), float(step))
                 
                 measurment_ = measurment.subs(solution)                
-                measurmentFunc = sp.lambdify(t, measurment_, "numpy")
+                #measurmentFunc = sp.lambdify(t, measurment_, "numpy")
+                measurmentFunc = lambda t_ : measurment_.subs({t : t_})
                 
                 ys = {
-                    t_ : measurmentFunc(t_) for t_ in ts
+                    t_ : measurmentFunc(t_ - float(interval.start)) for t_ in ts
                 }
                 
+                #formula = simplify(measurment_.subs({t : t - interval.start}))
                 formula = simplify(measurment_)
+                
+                formula = formula.subs({sp.Heaviside(t, 1.0) : 1.0})
+                formula = formula.subs({1.0 : 1})
+                
                 for a in preorder_traversal(formula):
                     if isinstance(a, Float):
                         formula = formula.subs(a, round(a, 5))
