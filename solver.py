@@ -243,13 +243,61 @@ class Solver():
                             #print(sol)
                         
                         for var, expr in sol.items():
-                            expr = sp.expand(sp.simplify(expr))
+                            #expr = sp.expand(sp.simplify(expr))
                             
                             if debugLog:
                                 print(var, expr)
-                                #print()
+                                
+                            expr = expr.apart(s)
                                
-                            expr_t = sp.simplify(inverseLaplace(expr))
+                            if debugLog:
+                                print(var, expr)
+                            
+                            if isinstance(expr, sp.Add):
+                                expr_t = sp.Float(0.0)
+                                for exp in expr.args:
+                                    print(exp)
+                                    
+                                    exp = sp.simplify(exp)
+                                    
+                                    print(exp)
+                                    
+                                    numer, denom = exp.as_numer_denom()
+                                    
+                                    numer = sp.expand(numer)
+                                    
+                                    print(numer, denom)
+                                    
+                                    if isinstance(numer, sp.Add):
+                                        exp_t = sum(sp.inverse_laplace_transform(num / denom, s, t, noconds=True) for num in numer.args)
+                                    else:
+                                        exp_t = sp.inverse_laplace_transform(exp, s, t, noconds=True)
+                                        
+                                    print(exp_t)
+                                    expr_t += exp_t
+                                    print()
+                            else:
+                                expr = sp.simplify(expr)
+                                    
+                                print(expr)
+                                
+                                numer, denom = expr.as_numer_denom()
+                                
+                                numer = sp.expand(numer)
+                                
+                                print(numer, denom)
+                                
+                                if isinstance(numer, sp.Add):
+                                    expr_t = sum(sp.inverse_laplace_transform(num / denom, s, t, noconds=True) for num in numer.args)
+                                else:
+                                    expr_t = sp.inverse_laplace_transform(expr, s, t, noconds=True)
+                                
+                                print(expr_t)
+                                print()
+                            
+                            expr_t = sp.simplify(expr_t)
+                            
+                            #expr_t = sp.simplify(inverseLaplace(expr))
                             
                             if debugLog:
                                 print(var, expr_t)
@@ -259,11 +307,11 @@ class Solver():
                                     expr_t = expr_t.subs({sp.Heaviside(a.args[0]) : sp.Heaviside(a.args[0], 1.0)})
                                 elif isinstance(a, sp.DiracDelta):
                                     if len(a.args) > 1:
-                                        #expr_t = expr_t.subs({sp.DiracDelta(a.args[0], a.args[1]) : sp.Float(0.0)})
-                                        expr_t = expr_t.subs({sp.DiracDelta(a.args[0], a.args[1]) : DiracDelta_(a.args[0])})
+                                        expr_t = expr_t.subs({sp.DiracDelta(a.args[0], a.args[1]) : sp.Float(0.0)})
+                                        #expr_t = expr_t.subs({sp.DiracDelta(a.args[0], a.args[1]) : DiracDelta_(a.args[0])})
                                     else:
-                                        #expr_t = expr_t.subs({sp.DiracDelta(a.args[0]) : sp.Float(0.0)})
-                                        expr_t = expr_t.subs({sp.DiracDelta(a.args[0]) : DiracDelta_(a.args[0])})
+                                        expr_t = expr_t.subs({sp.DiracDelta(a.args[0]) : sp.Float(0.0)})
+                                        #expr_t = expr_t.subs({sp.DiracDelta(a.args[0]) : DiracDelta_(a.args[0])})
                             
                             """
                             for a in preorder_traversal(expr_t):
@@ -900,7 +948,8 @@ def plotTranMeasurments(solutions, mint, maxt, step, measurments):
             states = {name : state for name, state in states if state != ""}
 
             if interval != EmptySet:
-                ts = np.arange(float(interval.start), float(interval.end), float(step))
+                #ts = np.arange(float(interval.start), float(interval.end), float(step))
+                ts = np.linspace(float(interval.start), float(interval.end), int(np.ceil(float((interval.end - interval.start) / step))))
                 
                 measurment_ = measurment.subs(solution)                
                 #measurmentFunc = sp.lambdify(t, measurment_, "numpy")
@@ -919,6 +968,11 @@ def plotTranMeasurments(solutions, mint, maxt, step, measurments):
                 for a in preorder_traversal(formula):
                     if isinstance(a, Float):
                         formula = formula.subs(a, round(a, 5))
+                    elif isinstance(a, sp.Heaviside):
+                        formula = formula.subs({sp.Heaviside(a.args[0], 1.0) : sp.Heaviside(a.args[0])})
+                        
+                            
+                                
 
                 #for key, val in all_ys.items():
                 #    if abs((interval.start - step) - key) < step/2 or abs((interval.end + step) - key) < step/2:

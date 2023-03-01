@@ -309,7 +309,7 @@ class Inductor(Component):  # unfinished
                 "Laplace": {
                     "equations": [
                         Eq(Vs["V1"] - Vs["V2"], s *
-                           Is["V1"] - self.values.get("I_V1_0",  self.values["I0"]))
+                           Is["V1"] - self.values.get("I_V1_0",  self.values["I0"])),
                         * Component.ZeroCurrentSum(Is),
                     ],
                     "conditions": [
