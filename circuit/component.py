@@ -1,10 +1,9 @@
-from node import Node
+from circuit.node import Node
 from sympy import Eq, oo, Symbol, exp
 from copy import deepcopy
+from solvers.symbols import s
 
 # --------------------------------------------------------------------------------------------------------------------------
-
-s  = Symbol("s")
 
 class Component:
     """
@@ -83,26 +82,6 @@ class Component:
 
                         }
                     },
-                    
-                    "Laplace": {
-                        "equations": {
-                            Eq(Vs["V1"],  Vs["V2"]),
-                            Eq(Is["I1"], -Is["I2"]),
-                        },
-                        "conditions": {
-
-                        }
-                    },
-                    
-                    "AC+DC" : {
-                        "equations": {
-                            Eq(Vs["V1"],  Vs["V2"]),
-                            Eq(Is["I1"], -Is["I2"]),
-                        },
-                        "conditions": {
-
-                        }
-                    }
                     
                 }
         }

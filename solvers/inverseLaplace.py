@@ -1,9 +1,7 @@
 import sympy as sp
 from copy import deepcopy
 
-s = sp.Symbol("s")
-#t = Symbol("t", real=True, positive=True)
-t = sp.Symbol("t", real=True, nonnegative=True)
+from solvers.symbols import *
 
 class Heaviside_(sp.Function):
     @classmethod
@@ -34,19 +32,76 @@ def Laplace(x, t0 = 0):
     return sp.laplace_transform(func, t, s, noconds=True)
 
 
-def discriminate(exp):
-    for a in sp.preorder_traversal(exp):
-        if type(a) == sp.Float:
-            if abs(a) < 1e-8:
-                #exp = exp.subs({a : 0.0})
-                pass
-    return exp
 
+def inverseLaplace(expr, debug = False):
+    
+    try:
+        expr = expr.apart(s)
+        
+        print(expr)
+        
+        expr_t = sp.inverse_laplace_transform(expr, s, t, noconds=True)
+    except Exception as e:
+        print("Basic laplace failed")
+        print(e)
+    
+    #numer, denom = expr.as_numer_denom()
+    #numer = sp.expand(numer)
+        
+    #print(numer, denom)
+    
+    return expr_t
+    
+    """
+    expr = expr.apart(s)
+
+    
+    if isinstance(expr, sp.Add):
+        expr_t = 0
+        for exp in expr.args:
+            #print(exp)
+            
+            #exp = sp.simplify(exp)
+            
+            #print(exp)
+            
+            numer, denom = exp.as_numer_denom()
+            
+            numer = sp.expand(numer)
+            
+            #print(numer, denom)
+            
+            if isinstance(numer, sp.Add):
+                exp_t = sum(sp.inverse_laplace_transform(num / denom, s, t, noconds=True) for num in numer.args)
+            else:
+                exp_t = sp.inverse_laplace_transform(numer / denom, s, t, noconds=True)
+                
+            #print(exp_t)
+            expr_t += exp_t
+            #print()
+    else:
+        #expr = sp.simplify(expr)
+            
+        #print(expr)
+        
+        numer, denom = expr.as_numer_denom()
+        
+        numer = sp.expand(numer)
+        
+        if debug:
+            print(numer, denom)
+        
+        if isinstance(numer, sp.Add):
+            expr_t = sum(sp.inverse_laplace_transform(num / denom, s, t, noconds=True) for num in numer.args)
+        else:
+            expr_t =  sp.inverse_laplace_transform(numer / denom, s, t, noconds=True)
+    """
+
+
+"""
 
 def inverseLaplace(exp, debug = False):
     exp = sp.expand(exp)
-    
-    exp = discriminate(exp)
     
     match(type(exp)):
         
@@ -170,7 +225,6 @@ def inverseLaplace(exp, debug = False):
                         raise Exception("type(n) Unexpected")
             
             exp = (mul / denom).apart(s)
-            exp = discriminate(exp)
             
             if type(exp) == sp.Add:
                 exp_t = inverseLaplace(exp, debug=debug)
@@ -180,12 +234,13 @@ def inverseLaplace(exp, debug = False):
             
             exp_t = sp.diff(exp_t, t, diff)
             exp_t = exp_t.subs({t : t + shift})
-            exp_t = discriminate(exp_t)
             
         case _:
             raise Exception("type(exp) Unexpected")
     
     return exp_t
+
+"""
         
         
 

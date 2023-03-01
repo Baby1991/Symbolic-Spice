@@ -1,6 +1,9 @@
-from component import *
+from circuit.component import *
 
-from inverseLaplace import Laplace
+import sympy as sp
+from sympy import diff
+
+from solvers.symbols import t
 
 # --------------------------------------------------------------------------------------------------------------------------
 # Physical Constants
@@ -39,12 +42,11 @@ class VoltageSource(Component):
 
                     ]
                 },
-
-                "Laplace": {
+                
+                "Transient": {
                     "equations": [
                         Eq(
-                            #Vs["V+"] - Vs["V-"], self.values["V_s"] * exp(s * self.values.get("t_0", 0))
-                            Vs["V+"] - Vs["V-"],  Laplace(self.values["V_t"], self.values.get("t_0", 0))
+                            Vs["V+"] - Vs["V-"],  self.values["V_t"]
                         ),
                         *Component.ZeroCurrentSum(Is),
                     ],
@@ -107,13 +109,11 @@ class CurrentSource(Component):
 
                     ]
                 },
-
-                "Laplace": {
+                
+                "Transient": {
                     "equations": [
                         Eq(
-                            #Is["V-"], self.values["I_s"] * exp(s * self.values.get("t_0", 0))
-                           # + self.values.get("I_V+_0", 0) / s
-                           Is["V-"],  Laplace(self.values["I_t"], self.values.get("t_0", 0))
+                           Is["V-"],  self.values["I_t"]
                         ),
                         *Component.ZeroCurrentSum(Is),
                     ],
@@ -173,39 +173,6 @@ class Resistor(Component):
                     ]
                 },
 
-                "Laplace": {
-                    "equations": [
-                        Eq(Is["V1"], (Vs["V1"] - Vs["V2"]) /
-                           self.values["R"]),
-                        *Component.ZeroCurrentSum(Is),
-                    ],
-                    "conditions": [
-
-                    ]
-                },
-
-                "AC+DC": {
-                    "equations": [
-                        Eq(Is["V1"], (Vs["V1"] - Vs["V2"]) /
-                           self.values["R"]),
-                        *Component.ZeroCurrentSum(Is),
-                    ],
-                    "conditions": [
-
-                    ]
-                },
-
-                "SmallSignal": {
-                    "equations": [
-                        Eq(Is["V1"], (Vs["V1"] - Vs["V2"]) /
-                           self.values["R"]),
-                        *Component.ZeroCurrentSum(Is),
-                    ],
-                    "conditions": [
-
-                    ]
-                }
-
             }
         }
 
@@ -236,14 +203,10 @@ class Capacitor(Component):  # unfinished
 
                     ]
                 },
-
-                "Laplace": {
+                
+                "Transient": {
                     "equations": [
-                        Eq(Is["V1"], self.values["C"] * (s * (Vs["V1"] - Vs["V2"])
-                                                         -
-                                                             (self.values.get(
-                                                                 "V1_0",  self.values["V0"]) - self.values.get("V2_0", 0))
-                                                         )),
+                        Eq(Is["V1"], self.values["C"] * diff((Vs["V1"] - Vs["V2"]), t)),
                         *Component.ZeroCurrentSum(Is),
                     ],
                     "conditions": [
@@ -261,15 +224,6 @@ class Capacitor(Component):  # unfinished
 
                     ]
                 },
-
-                "SmallSignal": {
-                    "equations": [
-                        *Component.OpenConnection(Vs, Is),
-                    ],
-                    "conditions": [
-
-                    ]
-                }
 
             }
         }
@@ -296,20 +250,15 @@ class Inductor(Component):  # unfinished
                 "OP": {
                     "equations": [
                         *Component.ShortCircuit(Vs, Is),
-
-                        # Eq(Is["V1"], self.values["I0"]),
-                        # *Component.ZeroCurrentSum(Is),
-                        # Eq(Vs["V1"], Vs["V2"]),
                     ],
                     "conditions": [
 
                     ]
                 },
-
-                "Laplace": {
+                
+                "Transient": {
                     "equations": [
-                        Eq(Vs["V1"] - Vs["V2"], s *
-                           Is["V1"] - self.values.get("I_V1_0",  self.values["I0"])),
+                        Eq(Vs["V1"] - Vs["V2"], self.values["L"] * diff((Is["V1"]), t)),
                         * Component.ZeroCurrentSum(Is),
                     ],
                     "conditions": [
@@ -327,15 +276,6 @@ class Inductor(Component):  # unfinished
 
                     ]
                 },
-
-                "SmallSignal": {
-                    "equations": [
-                        *Component.ShortCircuit(Vs, Is),
-                    ],
-                    "conditions": [
-
-                    ]
-                }
 
             }
         }
@@ -368,35 +308,15 @@ class Diode(Component):
                     ]
                 },
 
-                "Laplace": {
-                    "equations": [
-                        *Component.OpenConnection(Vs, Is)
-                    ],
-                    "conditions": [
-                        Vs["Vp"] - Vs["Vn"] < self.values["Vd"]
-                    ]
-                },
-
-                "AC+DC": {
-                    "equations": [
-                        *Component.OpenConnection(Vs, Is)
-                    ],
-                    "conditions": [
-                        Vs["Vp"] - Vs["Vn"] <= self.values["Vd"]
-                    ]
-                },
 
                 "SmallSignal": {
                     "equations": [
                         *Component.OpenConnection(Vs, Is)
                     ],
                     "conditions": [
-                        #(Vs["Vp"] - Vs["Vn"]) + (self.values.get("Vp_0", 0) - self.values.get("Vn_0", 0)) < self.values["Vd"],
-                        #(self.values.get("Vp_0", 0) - self.values.get("Vn_0", 0)) < self.values["Vd"],
                         
                         (self.values.get("Vp_0", 0) - self.values.get("Vn_0", 0)) < self.values["Vd"],
                         
-                        #(Vs["Vp"] - Vs["Vn"]) <= -self.values["Vd"]
                     ]
                 }
 
@@ -413,27 +333,6 @@ class Diode(Component):
                     ]
                 },
 
-                "Laplace": {
-                    "equations": [
-                        Eq(Vs["Vp"] - Vs["Vn"], self.values["Vd"] / s),
-                        *Component.ZeroCurrentSum(Is)
-                    ],
-                    "conditions": [
-                        Is["Vp"] >= 0
-                        #Is["Vp"] > -delta
-                    ]
-                },
-
-                "AC+DC": {
-                    "equations": [
-                        Eq(Vs["Vp"] - Vs["Vn"], self.values["Vd"]),
-                        *Component.ZeroCurrentSum(Is)
-                    ],
-                    "conditions": [
-                        Is["Vp"] > 0
-                    ]
-                },
-
                 "SmallSignal": {
                     "equations": [
                         Eq(Is["Vp"], (Vs["Vp"] - Vs["Vn"]) * self.values.get("I_Vp_0", 0) / 
@@ -441,18 +340,11 @@ class Diode(Component):
                         *Component.ZeroCurrentSum(Is),
                     ],
                     "conditions": [
-                        #Is["Vp"] + self.values.get("I_Vp_0", 0) > 0,
-                        
-                        #(self.values.get("Vp_0", 0) - self.values.get("Vn_0", 0)) >= self.values["Vd"],
-
+                    
                         [
                             (self.values.get("Vp_0", 0) - self.values.get("Vn_0", 0)) >= self.values["Vd"],
                             (Vs["Vp"] - Vs["Vn"]) > -self.values["Vd"],
                         ],
-                        #[
-                        #    (self.values.get("Vp_0", 0) - self.values.get("Vn_0", 0)) >= self.values["Vd"],
-                        #    (Vs["Vp"] - Vs["Vn"]) <= -self.values["Vd"],
-                        #],
                         
                     ]
                 }
@@ -493,18 +385,6 @@ class NPN(Component):
                     ]
                 },
 
-
-
-                "AC+DC": {
-                    "equations": [
-                        *Component.OpenConnection(Vs, Is),
-                    ],
-                    "conditions": [
-                        Vs["Vb"] - Vs["Ve"] <= self.values["Vdf"],
-                        Vs["Vb"] - Vs["Vc"] <= self.values["Vdr"],
-                    ]
-                },
-
                 "SmallSignal": {
                     "equations": [
                         *Component.OpenConnection(Vs, Is),
@@ -519,20 +399,6 @@ class NPN(Component):
 
             "Fwd": {
                 "OP": {
-                    "equations": [
-                        Eq(Is["Vc"], self.values["Bf"] * Is["Vb"]),
-                        Eq(Is["Ve"], -(self.values["Bf"] + 1) * Is["Vb"]),
-                        Eq(Vs["Vb"] - Vs["Ve"], self.values["Vdf"]),
-                    ],
-                    "conditions": [
-                        Is["Vb"] > 0,
-                        Vs["Vb"] - Vs["Vc"] <= self.values["Vdr"],
-                    ]
-                },
-
-
-
-                "AC+DC": {
                     "equations": [
                         Eq(Is["Vc"], self.values["Bf"] * Is["Vb"]),
                         Eq(Is["Ve"], -(self.values["Bf"] + 1) * Is["Vb"]),
@@ -568,20 +434,6 @@ class NPN(Component):
                     ]
                 },
 
-
-
-                "AC+DC": {
-                    "equations": [
-                        Eq(Is["Ve"], self.values["Br"] * Is["Vb"]),
-                        Eq(Is["Vc"], -(self.values["Br"] + 1) * Is["Vb"]),
-                        Eq(Vs["Vb"] - Vs["Vc"], self.values["Vdr"]),
-                    ],
-                    "conditions": [
-                        Is["Vb"] > 0,
-                        Vs["Vb"] - Vs["Ve"] <= self.values["Vdf"],
-                    ]
-                },
-
                 "SmallSignal": {
                     "equations": [
                         Eq(Vs["V"], self.values["Vac"]),
@@ -595,21 +447,6 @@ class NPN(Component):
 
             "Sat": {
                 "OP": {
-                    "equations": [
-                        *Component.ZeroCurrentSum(Is),
-                        Eq(Vs["Vb"] - Vs["Ve"], self.values["Vdf"]),
-                        Eq(Vs["Vb"] - Vs["Vc"], self.values["Vdr"]),
-                    ],
-                    "conditions": [
-                        Is["Vb"] > 0,
-                        Is["Vc"] < self.values["Bf"] * Is["Vb"],
-                        Is["Ve"] < self.values["Br"] * Is["Vb"],
-                    ]
-                },
-
-
-
-                "AC+DC": {
                     "equations": [
                         *Component.ZeroCurrentSum(Is),
                         Eq(Vs["Vb"] - Vs["Ve"], self.values["Vdf"]),
@@ -667,18 +504,6 @@ class PNP(Component):
                     ]
                 },
 
-
-
-                "AC+DC": {
-                    "equations": [
-                        *Component.OpenConnection(Vs, Is),
-                    ],
-                    "conditions": [
-                        Vs["Ve"] - Vs["Vb"] <= self.values["Vdf"],
-                        Vs["Vc"] - Vs["Vb"] <= self.values["Vdr"],
-                    ]
-                },
-
                 "SmallSignal": {
                     "equations": [
                         Eq(Vs["V"], self.values["Vac"]),
@@ -691,20 +516,6 @@ class PNP(Component):
 
             "Fwd": {
                 "OP": {
-                    "equations": [
-                        Eq(Is["Ve"], -(self.values["Bf"] + 1) * Is["Vb"]),
-                        Eq(Is["Vc"], self.values["Bf"] * Is["Vb"]),
-                        Eq(Vs["Ve"] - Vs["Vb"], self.values["Vdf"]),
-                    ],
-                    "conditions": [
-                        Is["Vb"] < 0,
-                        Vs["Vc"] - Vs["Vb"] <= self.values["Vdr"],
-                    ]
-                },
-
-
-
-                "AC+DC": {
                     "equations": [
                         Eq(Is["Ve"], -(self.values["Bf"] + 1) * Is["Vb"]),
                         Eq(Is["Vc"], self.values["Bf"] * Is["Vb"]),
@@ -739,20 +550,6 @@ class PNP(Component):
                     ]
                 },
 
-
-
-                "AC+DC": {
-                    "equations": [
-                        Eq(Is["Vc"], -(self.values["Br"] + 1) * Is["Vb"]),
-                        Eq(Is["Ve"], self.values["Br"] * Is["Vb"]),
-                        Eq(Vs["Vc"] - Vs["Vb"], self.values["Vdr"]),
-                    ],
-                    "conditions": [
-                        Is["Vb"] < 0,
-                        Vs["Ve"] - Vs["Vb"] <= self.values["Vdf"],
-                    ]
-                },
-
                 "SmallSignal": {
                     "equations": [
                         Eq(Vs["V"], self.values["Vac"]),
@@ -765,21 +562,6 @@ class PNP(Component):
 
             "Sat": {
                 "OP": {
-                    "equations": [
-                        *Component.ZeroCurrentSum(Is),
-                        Eq(Vs["Ve"] - Vs["Vb"], self.values["Vdf"]),
-                        Eq(Vs["Vc"] - Vs["Vb"], self.values["Vdr"]),
-                    ],
-                    "conditions": [
-                        Is["Vb"] < 0,
-                        Is["Vc"] > self.values["Bf"] * Is["Vb"],
-                        Is["Ve"] > self.values["Br"] * Is["Vb"],
-                    ]
-                },
-
-
-
-                "AC+DC": {
                     "equations": [
                         *Component.ZeroCurrentSum(Is),
                         Eq(Vs["Ve"] - Vs["Vb"], self.values["Vdf"]),
@@ -834,36 +616,6 @@ class OpAmp(Component):
                     ]
                 },
 
-                "Laplace": {
-                    "equations": [
-                        Eq(Is["V+"], 0),
-                        Eq(Is["V-"], 0),
-                        Eq(Is["Vcc"], 0),
-                        Eq(Is["Vee"], 0),
-                        Eq(Vs["Vop"] / self.values["Av"],
-                           Vs["V+"] - Vs["V-"]),
-                    ],
-                    "conditions": [
-                        Vs["Vop"] < Vs["Vcc"],
-                        Vs["Vop"] > Vs["Vee"],
-                    ]
-                },
-
-                "AC+DC": {
-                    "equations": [
-                        Eq(Is["V+"], 0),
-                        Eq(Is["V-"], 0),
-                        Eq(Is["Vcc"], 0),
-                        Eq(Is["Vee"], 0),
-                        Eq(Vs["Vop"] / self.values["Av"],
-                           Vs["V+"] - Vs["V-"]),
-                    ],
-                    "conditions": [
-                        Vs["Vop"] < Vs["Vcc"],
-                        Vs["Vop"] > Vs["Vee"],
-                    ]
-                },
-
                 "SmallSignal": {
                     "equations": [
                         Eq(Is["V+"], 0),
@@ -898,32 +650,6 @@ class OpAmp(Component):
                     ]
                 },
 
-                "Laplace": {
-                    "equations": [
-                        Eq(Is["V+"], 0),
-                        Eq(Is["V-"], 0),
-                        Eq(Is["Vcc"], 0),
-                        Eq(Is["Vee"], 0),
-                        Eq(Vs["Vop"], Vs["Vcc"] / s)
-                    ],
-                    "conditions": [
-                        Vs["V+"] - Vs["V-"] >= Vs["Vcc"] / self.values["Av"],
-                    ]
-                },
-
-                "AC+DC": {
-                    "equations": [
-                        Eq(Is["V+"], 0),
-                        Eq(Is["V-"], 0),
-                        Eq(Is["Vcc"], 0),
-                        Eq(Is["Vee"], 0),
-                        Eq(Vs["Vop"], Vs["Vcc"])
-                    ],
-                    "conditions": [
-                        Vs["V+"] - Vs["V-"] >= Vs["Vcc"] / self.values["Av"],
-                    ]
-                },
-
                 "SmallSignal": {
                     "equations": [
                         Eq(Is["V+"], 0),
@@ -941,32 +667,6 @@ class OpAmp(Component):
 
             "SatMin": {
                 "OP": {
-                    "equations": [
-                        Eq(Is["V+"], 0),
-                        Eq(Is["V-"], 0),
-                        Eq(Is["Vcc"], 0),
-                        Eq(Is["Vee"], 0),
-                        Eq(Vs["Vop"], Vs["Vee"])
-                    ],
-                    "conditions": [
-                        Vs["V+"] - Vs["V-"] <= Vs["Vee"] / self.values["Av"],
-                    ]
-                },
-
-                "Laplace": {
-                    "equations": [
-                        Eq(Is["V+"], 0),
-                        Eq(Is["V-"], 0),
-                        Eq(Is["Vcc"], 0),
-                        Eq(Is["Vee"], 0),
-                        Eq(Vs["Vop"], Vs["Vee"] / s)
-                    ],
-                    "conditions": [
-                        Vs["V+"] - Vs["V-"] <= Vs["Vee"] / self.values["Av"],
-                    ]
-                },
-
-                "AC+DC": {
                     "equations": [
                         Eq(Is["V+"], 0),
                         Eq(Is["V-"], 0),

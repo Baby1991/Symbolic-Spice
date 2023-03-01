@@ -1,5 +1,5 @@
 from sympy import Symbol
-from node import Node
+from circuit.node import Node
 from copy import deepcopy
 import re
 from pprint import pformat
