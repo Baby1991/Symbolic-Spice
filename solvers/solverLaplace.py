@@ -6,83 +6,7 @@ from solvers.solver import Solver
 
 from solvers.symbols import t, s
 
-def solveTransient(compiled, tmax, tstep=0.1, debugLog=True):
-
-    compiled = deepcopy(compiled)
-
-    variables = compiled["variables"]
-    circuitEquations = compiled["nodeEquations"]
-    elements = compiled["elements"]
-    voltages = compiled["voltages"]
-    currents = compiled["currents"]
-
-    functionMap = {var: sp.Function(str(var))(t) for var in variables}
-    circuitEquations = [equation.subs(functionMap)
-                        for equation in circuitEquations]
-    voltages = {elem_name: {node_name: node.subs(functionMap) if isinstance(
-        node, Symbol) else node for node_name, node in nodes.items()} for elem_name, nodes in voltages.items()}
-    currents = {elem_name: {node_name: node.subs(functionMap) if isinstance(
-        node, Symbol) else node for node_name, node in nodes.items()} for elem_name, nodes in currents.items()}
-
-
-    variableMap = {func : var for var, func in functionMap.items()}
-    laplaceTransforms = {sp.laplace_transform(func, t, s) : var for var, func in functionMap.items()}
-
-    if debugLog:
-        print(functionMap)
-        print(variableMap)
-        print(variables)
-        print(laplaceTransforms)
-        print(circuitEquations)
-        print(elements)
-        print(voltages)
-        print(currents)
-        print("***************************************")
-
-    solutions = []
-
-    solverType = "Transient"
-    permutations = Solver.allElementPermutations(elements, voltages, currents, solverType)
-
-    
-
-    for states, equations, conditions in permutations:
-        if debugLog:
-            print(states)
-            print(equations)
-            print(conditions)
-                
-        sol = sp.solve(equations, list(functionMap.values()), dict = True)[0]
-            
-        print("vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv")
-        
-        print(sol)
-        
-        print("---------------------------------------------")
-            
-        ordinaryEquations = []
-        for func, value in sol.items():
-            value = sp.laplace_transform(value, t, s)
-            if type(value) == tuple:
-                value = value[0].subs(laplaceTransforms)
-            else:
-                value = value.subs(laplaceTransforms)
-        
-            ordinaryEquations.append(Eq(variableMap[func], sp.simplify(value)))
-
-
-        sol = solve(ordinaryEquations, variables, dict=True)[0] 
-        
-        print(sol)
-        
-        print("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
-                
-
-    return solutions
-
-"""
-
-def solveTransient(compiled, tmax, tstep = 0.1, debugLog=True):
+def solveLaplace(compiled, tmax, tstep = 0.1, debugLog=True):
 
     compiled = deepcopy(compiled)
 
@@ -113,7 +37,7 @@ def solveTransient(compiled, tmax, tstep = 0.1, debugLog=True):
 
         current_solutions = []
 
-        solverType = "Transient"
+        solverType = "Laplace"
         permutations = Solver.allElementPermutations(elements, voltages, currents, solverType)
 
         for states, equations, conditions in permutations:
@@ -150,7 +74,7 @@ def solveTransient(compiled, tmax, tstep = 0.1, debugLog=True):
                         if debugLog:
                             print(var, expr_t)
                         
-                        for a in preorder_traversal(expr_t):
+                        for a in sp.preorder_traversal(expr_t):
                             if isinstance(a, sp.Heaviside):
                                 expr_t = expr_t.subs({sp.Heaviside(a.args[0]) : sp.Heaviside(a.args[0], 1.0)})
                             elif isinstance(a, sp.DiracDelta):
@@ -194,15 +118,15 @@ def solveTransient(compiled, tmax, tstep = 0.1, debugLog=True):
             states, sol_t, ineqs_ = current_solutions[0]
             previous_permutation = states
 
-            print(time, "\t\t\t\r", end="")
+            print(time, "\t\t\t\t\t\t\r", end="")
 
             while all(ineqs_(local_time)) and time <= tmax:
                 local_time += tstep
                 time += tstep
-                print(time, "\t\t\t\r", end="")
+                print(time, "\t\t\t\t\t\t\r", end="")
             
             if not all(ineqs_(local_time)):
-                print(time, "\t\t\t")
+                print(time, "\t\t\t\t\t\t")
 
                 currStep = tstep / 2
                 i = 0
@@ -248,7 +172,7 @@ def solveTransient(compiled, tmax, tstep = 0.1, debugLog=True):
                 solutions.append((Interval(t_start, time), sol_t, states))
 
     
-            print(time, "\t\t\t")
+            print(time, "\t\t\t\t\t\t")
             print("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
 
         except IndexError:
@@ -257,4 +181,3 @@ def solveTransient(compiled, tmax, tstep = 0.1, debugLog=True):
 
     return solutions
     
-"""
