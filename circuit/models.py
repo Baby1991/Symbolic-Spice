@@ -721,6 +721,19 @@ class OpAmp(Component):
                         Vs["V+"] - Vs["V-"] >= Vs["Vcc"] / self.values["Av"],
                     ]
                 },
+                
+                "Laplace": {
+                    "equations": [
+                        Eq(Is["V+"], 0),
+                        Eq(Is["V-"], 0),
+                        Eq(Is["Vcc"], 0),
+                        Eq(Is["Vee"], 0),
+                        Eq(Vs["Vop"], Vs["Vcc"] / s)
+                    ],
+                    "conditions": [
+                        Vs["V+"] - Vs["V-"] >= Vs["Vcc"] / self.values["Av"],
+                    ]
+                },
 
                 "SmallSignal": {
                     "equations": [
@@ -746,6 +759,19 @@ class OpAmp(Component):
                         Eq(Is["Vcc"], 0),
                         Eq(Is["Vee"], 0),
                         Eq(Vs["Vop"], Vs["Vee"])
+                    ],
+                    "conditions": [
+                        Vs["V+"] - Vs["V-"] <= Vs["Vee"] / self.values["Av"],
+                    ]
+                },
+                
+                "Laplace": {
+                    "equations": [
+                        Eq(Is["V+"], 0),
+                        Eq(Is["V-"], 0),
+                        Eq(Is["Vcc"], 0),
+                        Eq(Is["Vee"], 0),
+                        Eq(Vs["Vop"], Vs["Vee"] / s)
                     ],
                     "conditions": [
                         Vs["V+"] - Vs["V-"] <= Vs["Vee"] / self.values["Av"],
