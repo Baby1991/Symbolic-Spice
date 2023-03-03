@@ -32,9 +32,15 @@ class DiracDelta_(sp.Function):
         _t = printer._print(t)
         return r'\delta(%s)' % (_t)
 
+
+
 def Laplace(x, t0 = 0):
-    #func = x.subs({t : t + t0}) * sp.Heaviside(t, 1.0)
-    func = x.subs({t : t + t0}) * sp.Heaviside(t)
+
+    try:
+        func = x.subs({t : t + t0}) * sp.Heaviside(t)
+    except AttributeError:
+        func = x * sp.Heaviside(t)
+        
     return sp.laplace_transform(func, t, s, noconds=True)
 
 
@@ -199,7 +205,7 @@ def inverseLaplace(exp, debug = False):
                             exp_t = sp.re(sp.inverse_laplace_transform(exp_, s, t))
                         
                         exp_t = sp.diff(exp_t, t, diff - i)
-                        exp_t = exp_t.subs({t : t + shift})
+                        exp_t = exp_t.subs({t : t + shift}) * sp.Heaviside(t + shift)
                         
                         
                         break
@@ -234,7 +240,7 @@ def inverseLaplace(exp, debug = False):
                     
                     exp_t = sp.re(mul * sp.inverse_laplace_transform(1 / denom, s, t))
                 
-                exp_t = exp_t.subs({t : t + shift})    
+                exp_t = exp_t.subs({t : t + shift}) * sp.Heaviside(t + shift)
             
         case _:
             raise Exception("type(exp) Unexpected")
