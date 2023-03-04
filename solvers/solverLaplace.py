@@ -7,15 +7,13 @@ from solvers.solver import Solver
 from solvers.symbols import t, s
 
 import multiprocessing
-import itertools
+from tqdm import tqdm
+  
 
-def chunks(data, size = 5):
-    it = iter(data)
-    for i in range(0, len(data), size):
-        yield {k:data[k] for k in itertools.islice(it, size)}
+def inverseLaplaceProcess(item):
+                    
+    var, expr = item
 
-def inverseLaplaceProcess(var, expr, sol_t):
-    
     expr_t = inverseLaplace(expr)
     
     for a in sp.preorder_traversal(expr_t):
@@ -27,8 +25,7 @@ def inverseLaplaceProcess(var, expr, sol_t):
             else:
                 expr_t = expr_t.subs({sp.DiracDelta(a.args[0]) : sp.Float(0.0)})
                 
-    sol_t[var] = expr_t
-    
+    return {var : expr_t}
     
 
 def solveLaplace(compiled, tmax, tstep = 0.1, debugLog=True):
@@ -91,65 +88,26 @@ def solveLaplace(compiled, tmax, tstep = 0.1, debugLog=True):
                         print(sol)
                         print("-------------------------------------------------")
                     
-                    manager = multiprocessing.Manager()
-                    sol_t = manager.dict()
-                    
-                    for chk in chunks(sol, size = 4):
-                        jobs = []
-                        
-                        for var, expr in chk.items():
-                            p = multiprocessing.Process(target=inverseLaplaceProcess, args=(var, expr, sol_t))
-                            jobs.append(p)
-                            p.start()
-                            
-                        for proc in jobs:
-                            proc.join()
-                            
-                        if debugLog:
-                            for var, expr in chk.items():
-                                print(var, expr)    
-                                print(var, sol_t[var])
-                                print(var, sol_t[var].subs({t : 0}))
-                                print("-----------------")
-                        
-                    sol_t = {var : expr_t for var, expr_t in sol_t.items()}
-                        
-                    print(sol_t)
-                    
-                    """
                     sol_t = {}
                     
+                                    
+                    if debugLog:
+                        with multiprocessing.Pool() as pool:
+                            for ret in pool.imap_unordered(inverseLaplaceProcess, sol.items(), chunksize=4):
+                                sol_t.update(ret)
+                                print(list(ret.keys())[0], list(ret.values())[0])
+                                print("-----------------")
+                    else:
+                        with tqdm(total = len(sol.keys())) as pbar:
+                            with multiprocessing.Pool() as pool:
+                                for ret in pool.imap_unordered(inverseLaplaceProcess, sol.items(), chunksize=4):            
+                                    sol_t.update(ret)
+                                    pbar.update(1)
+                        
+                        
                     if debugLog:
                         print("-------------------------------------------------")
-                        #print(sol)
-                    
-                    for var, expr in sol.items():
-                        if debugLog:
-                            print(var, expr)
-                            
-                        expr_t = inverseLaplace(expr)
-                        
-                        if debugLog:
-                            print(var, expr_t)
-                        
-                        for a in sp.preorder_traversal(expr_t):
-                            if isinstance(a, sp.Heaviside):
-                                expr_t = expr_t.subs({sp.Heaviside(a.args[0]) : sp.Heaviside(a.args[0], 1.0)})
-                            elif isinstance(a, sp.DiracDelta):
-                                if len(a.args) > 1:
-                                    expr_t = expr_t.subs({sp.DiracDelta(a.args[0], a.args[1]) : sp.Float(0.0)})
-                                    #expr_t = expr_t.subs({sp.DiracDelta(a.args[0], a.args[1]) : DiracDelta_(a.args[0])})
-                                else:
-                                    expr_t = expr_t.subs({sp.DiracDelta(a.args[0]) : sp.Float(0.0)})
-                                    #expr_t = expr_t.subs({sp.DiracDelta(a.args[0]) : DiracDelta_(a.args[0])})
-                    
-                        sol_t[var] = expr_t
-                    
-                        if debugLog:
-                            print(var, expr_t)
-                            print(var, expr_t.subs({t : 0}))
-                            print("-----------------")
-                    """
+                        print(sol_t)
                     
                     #ineqs_ = sp.lambdify(t, ineqs({var : sp.Piecewise((0, abs(expr) < 1e-6), (expr, True)) for var, expr in sol_t.items()}), "numpy")
                     ineqs_ = lambda t_ : ineqs({var : expr.subs({t : t_}) for var, expr in sol_t.items()})

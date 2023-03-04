@@ -24,7 +24,7 @@ def printModel(model, var = t, important = None):
             print("-------------------------------------")
             
 
-def plotMeasurments(solutions, minx, maxx, step, measurments, inputVar):
+def plotMeasurments(solutions, minx, maxx, step, measurments, inputVar, ax = None):
 
     max_scale = sp.Interval(minx, maxx)
 
@@ -65,13 +65,23 @@ def plotMeasurments(solutions, minx, maxx, step, measurments, inputVar):
                     #if xs and ys:
                     #    plt.plot(
                     #        xs, ys, label=f"{measurmentName} : {repr(formulay)}, {repr(formulax)}\n{states}")
-                    if len(values.items()) > 2:
-                        plt.plot(
-                            values.keys(), values.values(), label=f"{measurmentName} : {repr(formulay)}, {repr(formulax)}\n{states}"
-                        )
-                    elif len(values.items()) == 1:
-                        plt.scatter(
-                            values.keys(), values.values(), label=f"{measurmentName} : {repr(formulay)}, {repr(formulax)}\n{states}")
+                    
+                    if ax is not None:
+                        if len(values.items()) > 2:
+                            ax.plot(
+                                values.keys(), values.values(), label=f"{measurmentName} : {repr(formulay)}, {repr(formulax)}\n{states}"
+                            )
+                        elif len(values.items()) == 1:
+                            ax.scatter(
+                                values.keys(), values.values(), label=f"{measurmentName} : {repr(formulay)}, {repr(formulax)}\n{states}")
+                    else:
+                        if len(values.items()) > 2:
+                            plt.plot(
+                                values.keys(), values.values(), label=f"{measurmentName} : {repr(formulay)}, {repr(formulax)}\n{states}"
+                            )
+                        elif len(values.items()) == 1:
+                            plt.scatter(
+                                values.keys(), values.values(), label=f"{measurmentName} : {repr(formulay)}, {repr(formulax)}\n{states}")
 
             elif isinstance(interval, sp.Interval):
 
@@ -98,13 +108,25 @@ def plotMeasurments(solutions, minx, maxx, step, measurments, inputVar):
                 #if xs and ys:
                 #    plt.plot(
                 #    xs, ys, label=f"{measurmentName} : {repr(formulay)}, {repr(formulax)}\n{states}")
-                if len(values.items()) > 2:
-                    plt.plot(
-                        values.keys(), values.values(), label=f"{measurmentName} : {repr(formulay)}, {repr(formulax)}\n{states}"
-                    )
-                elif len(values.items()) == 1:
-                    plt.scatter(
-                        values.keys(), values.values(), label=f"{measurmentName} : {repr(formulay)}, {repr(formulax)}\n{states}")
+                
+                if ax is not None:
+                    if len(values.items()) > 2:
+                        ax.plot(
+                            values.keys(), values.values(), label=f"{measurmentName} : {repr(formulay)}, {repr(formulax)}\n{states}"
+                        )
+                    elif len(values.items()) == 1:
+                        ax.scatter(
+                            values.keys(), values.values(), label=f"{measurmentName} : {repr(formulay)}, {repr(formulax)}\n{states}")
+                else:
+                    if len(values.items()) > 2:
+                        plt.plot(
+                            values.keys(), values.values(), label=f"{measurmentName} : {repr(formulay)}, {repr(formulax)}\n{states}"
+                        )
+                    elif len(values.items()) == 1:
+                        plt.scatter(
+                            values.keys(), values.values(), label=f"{measurmentName} : {repr(formulay)}, {repr(formulax)}\n{states}")
+                    
+                
                     
 
             elif isinstance(interval, sp.Set):
@@ -128,12 +150,17 @@ def plotMeasurments(solutions, minx, maxx, step, measurments, inputVar):
                 #if xs and ys:
                 #    plt.scatter(
                 #    xs, ys, label=f"{measurmentName} : {repr(formulay)}, {repr(formulax)}\n{states}")
-                if values:
-                    plt.scatter(
-                        values.keys(), values.values(), label=f"{measurmentName} : {repr(formulay)}, {repr(formulax)}\n{states}")
+                if ax is not None:
+                    if values:
+                        ax.scatter(
+                            values.keys(), values.values(), label=f"{measurmentName} : {repr(formulay)}, {repr(formulax)}\n{states}")
+                else:
+                    if values:
+                        plt.scatter(
+                            values.keys(), values.values(), label=f"{measurmentName} : {repr(formulay)}, {repr(formulax)}\n{states}")
 
 
-def plotTranMeasurments(solutions, mint, maxt, step, measurments):
+def plotTranMeasurments(solutions, mint, maxt, step, measurments, ax=None):
 
     max_scale = sp.Interval(mint, maxt)
 
@@ -179,7 +206,10 @@ def plotTranMeasurments(solutions, mint, maxt, step, measurments):
                         
                 ts = sorted(list(ys.keys()))
                 ys = {t_ : ys[t_] for t_ in ts}
-
-                plt.plot(ys.keys(), ys.values(), label=f"{measurmentName} : ${sp.latex(formula)}$\n{states}")
+                
+                if ax is not None:
+                    ax.plot(ys.keys(), ys.values(), label=f"{measurmentName} : ${sp.latex(formula)}$\n{states}")
+                else:
+                    plt.plot(ys.keys(), ys.values(), label=f"{measurmentName} : ${sp.latex(formula)}$\n{states}")
                 
                 all_ys.update(ys)
