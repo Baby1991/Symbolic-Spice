@@ -90,17 +90,20 @@ def solveLaplace(compiled, tmax, tstep = 0.1, debugLog=True):
                     
                     sol_t = {}
                     
-                                    
-                    if debugLog:
-                        with multiprocessing.Pool() as pool:
-                            for ret in pool.imap_unordered(inverseLaplaceProcess, sol.items(), chunksize=4):
+                    taskN = len(sol.keys())
+                    workerN = 6
+                    #chunksize = int(taskN / workerN * 0.5)
+                    chunksize = workerN
+                    
+                    with multiprocessing.Pool(processes=workerN) as pool:
+                        if debugLog:
+                            for ret in pool.imap_unordered(inverseLaplaceProcess, sol.items(), chunksize=chunksize):
                                 sol_t.update(ret)
                                 print(list(ret.keys())[0], list(ret.values())[0])
                                 print("-----------------")
-                    else:
-                        with tqdm(total = len(sol.keys())) as pbar:
-                            with multiprocessing.Pool() as pool:
-                                for ret in pool.imap_unordered(inverseLaplaceProcess, sol.items(), chunksize=4):            
+                        else:
+                            with tqdm(total = taskN) as pbar:
+                                for ret in pool.imap_unordered(inverseLaplaceProcess, sol.items(), chunksize=chunksize):            
                                     sol_t.update(ret)
                                     pbar.update(1)
                         
