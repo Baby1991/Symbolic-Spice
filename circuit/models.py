@@ -473,18 +473,19 @@ class NPN(Component):
                         Vs["Vb"] - Vs["Vc"] <= self.values["Vdr"],
                     ]
                 },
-
-                "SmallSignal": {
+                
+                "Laplace": {
                     "equations": [
-                        Eq(Vs["V"], self.values["Vac"]),
+                        Eq(Is["Vc"], self.values["Bf"] * Is["Vb"]),
+                        Eq(Is["Ve"], -(self.values["Bf"] + 1) * Is["Vb"]),
+                        Eq(Vs["Vb"] - Vs["Ve"], self.values["Vdf"] / s),
                     ],
                     "conditions": [
-                        self.values.get(
-                            "Vb_0", 0) - self.values.get("Ve_0", 0) >= self.values["Vdf"],
-                        self.values.get(
-                            "Vb_0", 0) - self.values.get("Vc_0", 0) < self.values["Vdr"],
+                        Is["Vb"] > 0,
+                        Vs["Vb"] - Vs["Vc"] <= self.values["Vdr"],
                     ]
-                }
+                },
+
             },
 
             "Inv": {
@@ -500,17 +501,18 @@ class NPN(Component):
                     ]
                 },
 
-                "SmallSignal": {
+                "Laplace": {
                     "equations": [
-                        Eq(Vs["V"], self.values["Vac"]),
+                        Eq(Is["Ve"], self.values["Br"] * Is["Vb"]),
+                        Eq(Is["Vc"], -(self.values["Br"] + 1) * Is["Vb"]),
+                        Eq(Vs["Vb"] - Vs["Vc"], self.values["Vdr"] / s),
                     ],
                     "conditions": [
-                        self.values.get(
-                            "Vb_0", 0) - self.values.get("Ve_0", 0) < self.values["Vdf"],
-                        self.values.get(
-                            "Vb_0", 0) - self.values.get("Vc_0", 0) >= self.values["Vdr"],
+                        Is["Vb"] > 0,
+                        Vs["Vb"] - Vs["Ve"] <= self.values["Vdf"],
                     ]
-                }
+                },
+
             },
 
             "Sat": {
@@ -526,18 +528,20 @@ class NPN(Component):
                         Is["Ve"] < self.values["Br"] * Is["Vb"],
                     ]
                 },
-
-                "SmallSignal": {
+                
+                "OP": {
                     "equations": [
-                        Eq(Vs["V"], self.values["Vac"]),
+                        *Component.ZeroCurrentSum(Is),
+                        Eq(Vs["Vb"] - Vs["Ve"], self.values["Vdf"] / s),
+                        Eq(Vs["Vb"] - Vs["Vc"], self.values["Vdr"] / s),
                     ],
                     "conditions": [
-                        self.values.get(
-                            "Vb_0", 0) - self.values.get("Ve_0", 0) >= self.values["Vdf"],
-                        self.values.get(
-                            "Vb_0", 0) - self.values.get("Vc_0", 0) >= self.values["Vdr"],
+                        Is["Vb"] > 0,
+                        Is["Vc"] < self.values["Bf"] * Is["Vb"],
+                        Is["Ve"] < self.values["Br"] * Is["Vb"],
                     ]
-                }
+                },
+
             },
         }
 
@@ -596,6 +600,18 @@ class PNP(Component):
                         Vs["Vc"] - Vs["Vb"] <= self.values["Vdr"],
                     ]
                 },
+                
+                "Laplace": {
+                    "equations": [
+                        Eq(Is["Ve"], -(self.values["Bf"] + 1) * Is["Vb"]),
+                        Eq(Is["Vc"], self.values["Bf"] * Is["Vb"]),
+                        Eq(Vs["Ve"] - Vs["Vb"], self.values["Vdf"] / s),
+                    ],
+                    "conditions": [
+                        Is["Vb"] < 0,
+                        Vs["Vc"] - Vs["Vb"] <= self.values["Vdr"],
+                    ]
+                },
 
                 "SmallSignal": {
                     "equations": [
@@ -620,6 +636,18 @@ class PNP(Component):
                     ]
                 },
 
+                "Laplace": {
+                    "equations": [
+                        Eq(Is["Vc"], -(self.values["Br"] + 1) * Is["Vb"]),
+                        Eq(Is["Ve"], self.values["Br"] * Is["Vb"]),
+                        Eq(Vs["Vc"] - Vs["Vb"], self.values["Vdr"] / s),
+                    ],
+                    "conditions": [
+                        Is["Vb"] < 0,
+                        Vs["Ve"] - Vs["Vb"] <= self.values["Vdf"],
+                    ]
+                },
+
                 "SmallSignal": {
                     "equations": [
                         Eq(Vs["V"], self.values["Vac"]),
@@ -636,6 +664,19 @@ class PNP(Component):
                         *Component.ZeroCurrentSum(Is),
                         Eq(Vs["Ve"] - Vs["Vb"], self.values["Vdf"]),
                         Eq(Vs["Vc"] - Vs["Vb"], self.values["Vdr"]),
+                    ],
+                    "conditions": [
+                        Is["Vb"] < 0,
+                        Is["Vc"] > self.values["Bf"] * Is["Vb"],
+                        Is["Ve"] > self.values["Br"] * Is["Vb"],
+                    ]
+                },
+                
+                "Laplace": {
+                    "equations": [
+                        *Component.ZeroCurrentSum(Is),
+                        Eq(Vs["Ve"] - Vs["Vb"], self.values["Vdf"] / s),
+                        Eq(Vs["Vc"] - Vs["Vb"], self.values["Vdr"] / s),
                     ],
                     "conditions": [
                         Is["Vb"] < 0,

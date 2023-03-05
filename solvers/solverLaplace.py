@@ -28,7 +28,7 @@ def inverseLaplaceProcess(item):
     return {var : expr_t}
     
 
-def solveLaplace(compiled, tmax, tstep = 0.1, debugLog=True):
+def solveLaplace(compiled, tmax, tstep = 0.1, measurments = {}, workerN = 4, debugLog=True):
 
     compiled = deepcopy(compiled)
 
@@ -38,8 +38,17 @@ def solveLaplace(compiled, tmax, tstep = 0.1, debugLog=True):
     voltages = compiled["voltages"]
     currents = compiled["currents"]
 
+    if measurments != {}:
+        importantVariables = set()
+        for meas in measurments:
+            importantVariables.update(meas.atoms(sp.Symbol))
+    else:
+        importantVariables = variables
+        
+
     if debugLog:
         print(variables)
+        print(importantVariables)
         print(circuitEquations)
         print(elements)
         print(voltages)
@@ -47,10 +56,9 @@ def solveLaplace(compiled, tmax, tstep = 0.1, debugLog=True):
         print("***************************************")
 
     solutions = []
+    failed_states = set()
 
     time = 0
-
-    previous_permutation = set()
         
     while time <= tmax:
 
@@ -63,8 +71,8 @@ def solveLaplace(compiled, tmax, tstep = 0.1, debugLog=True):
         permutations = Solver.allElementPermutations(elements, voltages, currents, solverType)
 
         for states, equations, conditions in permutations:
-
-            if states == previous_permutation:
+            
+            if states.intersection(failed_states):
                 continue
 
             equations.extend(circuitEquations)
@@ -74,7 +82,13 @@ def solveLaplace(compiled, tmax, tstep = 0.1, debugLog=True):
                 print(equations)
                 print(conditions)
 
-            ineqs = lambda sol_t0 : [ineq.subs(sol_t0) for ineq in conditions]
+            importantVariables_ = deepcopy(importantVariables)
+            for conds in conditions.values():
+                for cond in conds:
+                    importantVariables_.update(cond.atoms(sp.Symbol))
+
+            if debugLog:
+                print(importantVariables_)
 
             try:
                 sols = solve(equations, variables, dict=True)
@@ -89,31 +103,41 @@ def solveLaplace(compiled, tmax, tstep = 0.1, debugLog=True):
                         print("-------------------------------------------------")
                     
                     sol_t = {}
+                    sol_ = {var : expr for var, expr in sol.items() if var in importantVariables_}
                     
-                    taskN = len(sol.keys())
-                    workerN = 6
+                    """
+                    taskN = len(sol_.keys())
+                    #workerN = 6
                     #chunksize = int(taskN / workerN * 0.5)
                     chunksize = workerN
                     
                     with multiprocessing.Pool(processes=workerN) as pool:
                         if debugLog:
-                            for ret in pool.imap_unordered(inverseLaplaceProcess, sol.items(), chunksize=chunksize):
+                            for ret in pool.imap_unordered(inverseLaplaceProcess, sol_.items(), chunksize=chunksize):
                                 sol_t.update(ret)
                                 print(list(ret.keys())[0], list(ret.values())[0])
                                 print("-----------------")
                         else:
                             with tqdm(total = taskN) as pbar:
-                                for ret in pool.imap_unordered(inverseLaplaceProcess, sol.items(), chunksize=chunksize):            
+                                for ret in pool.imap_unordered(inverseLaplaceProcess, sol_.items(), chunksize=chunksize):            
                                     sol_t.update(ret)
                                     pbar.update(1)
-                        
+                    """
+                    
+                    for item in sol_.items():
+                        #print(item)
+                        item_t = inverseLaplaceProcess(item)
+                        #print(item_t)
+                        sol_t.update(item_t)
+                        #print("-------------")
                         
                     if debugLog:
                         print("-------------------------------------------------")
                         print(sol_t)
                     
                     #ineqs_ = sp.lambdify(t, ineqs({var : sp.Piecewise((0, abs(expr) < 1e-6), (expr, True)) for var, expr in sol_t.items()}), "numpy")
-                    ineqs_ = lambda t_ : ineqs({var : expr.subs({t : t_}) for var, expr in sol_t.items()})
+                    ineqs = {state : [sp.lambdify(t, cond.subs(sol_t)) for cond in conds] for state, conds in conditions.items()}
+                    ineqs_ = lambda t_ : {state : [cond(t_) for cond in conds] for state, conds in ineqs.items()}
 
                     if debugLog:
                         print("-------------------------------------------------")
@@ -121,7 +145,7 @@ def solveLaplace(compiled, tmax, tstep = 0.1, debugLog=True):
                         print(ineqs_(0.0))
                         print("*****************************************")
 
-                    if all(ineqs_(0.0)):
+                    if all(all(conds) for conds in ineqs_(0.0).values()):
                         current_solutions.append(
                             (states, sol_t, ineqs_))
                         raise IndexError
@@ -132,19 +156,19 @@ def solveLaplace(compiled, tmax, tstep = 0.1, debugLog=True):
             finally:
                 pass
 
+        #print(current_solutions)
 
         try:
             states, sol_t, ineqs_ = current_solutions[0]
-            previous_permutation = states
 
             print(time, "\t\t\t\t\t\t\r", end="")
 
-            while all(ineqs_(local_time)) and time <= tmax:
+            while all(all(conds) for conds in ineqs_(local_time).values()) and time <= tmax:
                 local_time += tstep
                 time += tstep
                 print(time, "\t\t\t\t\t\t\r", end="")
             
-            if not all(ineqs_(local_time)):
+            if not all(all(conds) for conds in ineqs_(local_time).values()):
                 print(time, "\t\t\t\t\t\t")
 
                 currStep = tstep / 2
@@ -154,7 +178,7 @@ def solveLaplace(compiled, tmax, tstep = 0.1, debugLog=True):
                     local_time -= currStep
                     time -= currStep
                     
-                    if not all(ineqs_(local_time)):
+                    if not all(all(conds) for conds in ineqs_(local_time).values()):
                         if i > 10:
                             break
                     else:
@@ -167,6 +191,13 @@ def solveLaplace(compiled, tmax, tstep = 0.1, debugLog=True):
                     i += 1    
                     currStep = currStep / 2
                     
+                failed_states = set()
+                for state, conditions in ineqs_(local_time).items():
+                    if not any(conditions):
+                        failed_states.add(state)
+
+                if debugLog:
+                    print("Changed state: ", failed_states)                    
                     
             
             sol_t0 = {var: eq.subs({t: local_time})
@@ -183,7 +214,7 @@ def solveLaplace(compiled, tmax, tstep = 0.1, debugLog=True):
                     
                 elements[name].values.update({f"t_0" : time})
 
-
+            sol_t = {var : expr_t for var, expr_t in sol_t.items() if var in importantVariables}
             
             if time <= tmax:
                 solutions.append((Interval.Ropen(t_start, time), sol_t, states))
@@ -195,7 +226,7 @@ def solveLaplace(compiled, tmax, tstep = 0.1, debugLog=True):
             print("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
 
         except IndexError:
-            print("Index Error")
+            print(218, "Index Error")
             break
 
     return solutions

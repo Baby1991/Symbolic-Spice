@@ -1,16 +1,16 @@
 import sympy as sp
-from solvers.symbols import t
+from solvers.symbols import t, t0
 import matplotlib.pyplot as plt
 import numpy as np
 
-def printModel(model, var = t, important = None):
-    if important == None:
+def printModel(model, var = t, measurments = []):
+    if measurments == []:
         for interval, solution, state in model:
             if state != "":
                 print(state)
             #if var is not None:
             print(f"{var} ∈ {interval}")
-            print(sp.latex(solution))
+            print(solution)
             print("-------------------------------------")
     else:
         for interval, solution, state in model:
@@ -18,15 +18,15 @@ def printModel(model, var = t, important = None):
                 print(state)
             #if var is not None:
             print(f"{var} ∈ {interval}")
-            print({imp : imp.subs(solution) for imp in important})
-            print({imp : imp.subs(solution).subs({var : interval.start}) for imp in important})
-            print({imp : imp.subs(solution).subs({var : interval.end}) for imp in important})
+            for expr in measurments:
+                print(expr, " : ")
+                sp.pprint(sp.simplify(expr.subs(solution)))
             print("-------------------------------------")
             
 
-def plotMeasurments(solutions, minx, maxx, step, measurments, inputVar, ax = None):
+def plotMeasurments(solutions, mint, maxt, step, measurments, inputVar, ax = None):
 
-    max_scale = sp.Interval(minx, maxx)
+    max_scale = sp.Interval(mint, maxt)
 
     for measurmentx, measurmenty, measurmentName in measurments:
 
@@ -47,9 +47,7 @@ def plotMeasurments(solutions, minx, maxx, step, measurments, inputVar, ax = Non
                     ts = list(np.linspace(start, end, numP))
                     if len(ts) < 2:
                         ts = [start, end]
-                        
-                    #xs = [formulax.subs(inputVar, t) for t in ts]
-                    #ys = [formulay.subs(inputVar, t) for t in ts]
+                    
                     values = {formulax.subs(inputVar, t) : formulay.subs(inputVar, t) for t in ts}
 
                     formulax = sp.simplify(formulax)
@@ -62,9 +60,6 @@ def plotMeasurments(solutions, minx, maxx, step, measurments, inputVar, ax = Non
                         if isinstance(a, sp.Float):
                             formulay = formulay.subs(a, round(a, 5))
 
-                    #if xs and ys:
-                    #    plt.plot(
-                    #        xs, ys, label=f"{measurmentName} : {repr(formulay)}, {repr(formulax)}\n{states}")
                     
                     if ax is not None:
                         if len(values.items()) > 2:
@@ -91,8 +86,6 @@ def plotMeasurments(solutions, minx, maxx, step, measurments, inputVar, ax = Non
                 if len(ts) < 2:
                     ts = [start, end]
                     
-                #xs = [formulax.subs(inputVar, t) for t in ts]
-                #ys = [formulay.subs(inputVar, t) for t in ts]
                 values = {formulax.subs(inputVar, t) : formulay.subs(inputVar, t) for t in ts}
 
                 formulax = sp.simplify(formulax)
@@ -105,9 +98,6 @@ def plotMeasurments(solutions, minx, maxx, step, measurments, inputVar, ax = Non
                     if isinstance(a, sp.Float):
                         formulay = formulay.subs(a, round(a, 5))
 
-                #if xs and ys:
-                #    plt.plot(
-                #    xs, ys, label=f"{measurmentName} : {repr(formulay)}, {repr(formulax)}\n{states}")
                 
                 if ax is not None:
                     if len(values.items()) > 2:
@@ -134,8 +124,6 @@ def plotMeasurments(solutions, minx, maxx, step, measurments, inputVar, ax = Non
                 ts = list(interval)
                 
                 values = {formulax.subs(inputVar, t) : formulay.subs(inputVar, t) for t in ts}
-                #xs = [formulax.subs(inputVar, t) for t in ts]
-                #ys = [formulay.subs(inputVar, t) for t in ts]
 
                 formulax = sp.simplify(formulax)
                 formulay = sp.simplify(formulay)
@@ -147,9 +135,7 @@ def plotMeasurments(solutions, minx, maxx, step, measurments, inputVar, ax = Non
                     if isinstance(a, sp.Float):
                         formulay = formulay.subs(a, round(a, 5))
 
-                #if xs and ys:
-                #    plt.scatter(
-                #    xs, ys, label=f"{measurmentName} : {repr(formulay)}, {repr(formulax)}\n{states}")
+                
                 if ax is not None:
                     if values:
                         ax.scatter(
@@ -164,7 +150,7 @@ def plotTranMeasurments(solutions, mint, maxt, step, measurments, ax=None):
 
     max_scale = sp.Interval(mint, maxt)
 
-    for measurment, measurmentName in measurments:
+    for measurmentx, measurmenty, measurmentName in measurments:
 
         all_ys = {}
 
@@ -174,20 +160,26 @@ def plotTranMeasurments(solutions, mint, maxt, step, measurments, ax=None):
             states = {name : state for name, state in states if state != ""}
 
             if interval != sp.EmptySet:
-                #ts = np.arange(float(interval.start), float(interval.end), float(step))
+                
                 ts = np.linspace(float(interval.start), float(interval.end), int(np.ceil(float((interval.end - interval.start) / step))))
                 
-                measurment_ = measurment.subs(solution)                
-                #measurmentFunc = sp.lambdify(t, measurment_, "numpy")
-                measurmentFunc = lambda t_ : measurment_.subs({t : t_})
+                formulax = measurmentx.subs(solution)
+                formulay = measurmenty.subs(solution)
+
+                formulax = formulax.subs(t0, t + float(interval.start))
+                formulay = formulay.subs(t0, t + float(interval.start))
                 
-                ys = {
-                    t_ : measurmentFunc(t_ - float(interval.start)) for t_ in ts
-                }
+                #print(formulax, formulay)
                 
-                #formula = simplify(measurment_.subs({t : t - interval.start}))
-                formula = sp.simplify(measurment_)
+                valx = sp.lambdify(t, formulax, "numpy")
+                valy = sp.lambdify(t, formulay, "numpy")
                 
+                values = {valx(t_ - float(interval.start)) : valy(t_ - float(interval.start)) for t_ in ts}
+                
+                formulax = sp.simplify(formulax)
+                formulay = sp.simplify(formulay)
+                
+                """
                 formula = formula.subs({sp.Heaviside(t, 1.0) : 1.0})
                 formula = formula.subs({1.0 : 1})
                 
@@ -196,20 +188,14 @@ def plotTranMeasurments(solutions, mint, maxt, step, measurments, ax=None):
                         formula = formula.subs(a, round(a, 5))
                     elif isinstance(a, sp.Heaviside):
                         formula = formula.subs({sp.Heaviside(a.args[0], 1.0) : sp.Heaviside(a.args[0])})
+                """     
                         
-                            
-                                
-
-                #for key, val in all_ys.items():
-                #    if abs((interval.start - step) - key) < step/2 or abs((interval.end + step) - key) < step/2:
-                #        ys.update({key : val})
-                        
-                ts = sorted(list(ys.keys()))
-                ys = {t_ : ys[t_] for t_ in ts}
+                xs = sorted(list(values.keys()))
+                values = {x : values[x] for x in xs}
                 
                 if ax is not None:
-                    ax.plot(ys.keys(), ys.values(), label=f"{measurmentName} : ${sp.latex(formula)}$\n{states}")
+                    ax.plot(values.keys(), values.values(), label=f"{measurmentName} : (${sp.latex(formulax)}$, ${sp.latex(formulay)}$)\n{states}")
                 else:
-                    plt.plot(ys.keys(), ys.values(), label=f"{measurmentName} : ${sp.latex(formula)}$\n{states}")
+                    plt.plot(values.keys(), values.values(), label=f"{measurmentName} : (${sp.latex(formulax)}$, ${sp.latex(formulay)}$)\n{states}")
                 
-                all_ys.update(ys)
+                all_ys.update(values)

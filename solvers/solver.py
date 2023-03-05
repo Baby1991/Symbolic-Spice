@@ -44,13 +44,14 @@ class Solver():
         for perm in itertools.product(*allModes):
             states = set()
             equations = []
-            conditions = []
+            conditions = {}
             
             for p in perm:
                 for state, eqs in p.items():
                     states.add(state)
                     equations.extend(eqs["equations"])
-                    conditions.extend(eqs["conditions"])
+                    if eqs["conditions"] != []:
+                        conditions.update({state : eqs["conditions"]})
                 
             permutations.append((states, equations, conditions))
         

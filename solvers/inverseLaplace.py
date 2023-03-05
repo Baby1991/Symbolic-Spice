@@ -8,6 +8,8 @@ else:
     from solvers.symbols import *
 
 
+inverseLaplaceTransforms = {1/s : 1.0, 1/s**2 : t, 1/(1 + s**2) : sp.sin(t), s/(1 + s**2) : sp.cos(t)}
+
 
 class Heaviside_(sp.Function):
     @classmethod
@@ -51,13 +53,22 @@ def inverseLaplace(exp, debug = False):
     
     #print(exp)
     
+    #print(inverseLaplaceTransforms)
+    for solvedExp in inverseLaplaceTransforms.keys():
+        ratio = exp / solvedExp
+        if ratio.is_number:
+            #print(ratio, solvedExp)
+            return ratio * inverseLaplaceTransforms[solvedExp]
+    
     match(type(exp)):
         
         case sp.Float:
             exp_t = sp.re(sp.inverse_laplace_transform(exp, s, t))
             
+            
         case sp.Integer:
             exp_t = sp.re(sp.inverse_laplace_transform(exp, s, t))
+            
                 
         case sp.Add:
             exp_t = 0
@@ -87,7 +98,7 @@ def inverseLaplace(exp, debug = False):
                     exp_t = inverseLaplace(exp, debug=debug)
                 else:
                     exp_t = sp.re(sp.inverse_laplace_transform(exp, s, t))
-                    #exp_t = exp_t.subs({sp.Heaviside(t) : 1})
+                    
             else:
                 print(numer, type(numer))
                 raise Exception("Unexpected Pow")
@@ -203,6 +214,7 @@ def inverseLaplace(exp, debug = False):
                             exp_t = inverseLaplace(exp_, debug=debug)
                         else:
                             exp_t = sp.re(sp.inverse_laplace_transform(exp_, s, t))
+                            
                         
                         exp_t = sp.diff(exp_t, t, diff - i)
                         exp_t = exp_t.subs({t : t + shift}) * sp.Heaviside(t + shift)
@@ -239,12 +251,14 @@ def inverseLaplace(exp, debug = False):
                                 denom = denom.subs({x : sp.Integer(x)})
                     
                     exp_t = sp.re(mul * sp.inverse_laplace_transform(1 / denom, s, t))
+                    
                 
                 exp_t = exp_t.subs({t : t + shift}) * sp.Heaviside(t + shift)
             
         case _:
             raise Exception("type(exp) Unexpected")
     
+    inverseLaplaceTransforms[sp.simplify(exp)] = sp.simplify(exp_t)   #save
     return exp_t
 
 

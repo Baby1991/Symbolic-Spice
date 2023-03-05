@@ -3,7 +3,8 @@ from solvers.solverACDC import solveACDC
 from solvers.solverTransient import solveTransient
 from solvers.solverLaplace import solveLaplace
 from solvers.solverSmallSignal import solveSmallSignal
-from solvers.symbols import t, s
+from solvers.symbols import t, t0, s
 from solvers.solver import Solver, Gnd
-from misc.print_plot import printModel, plotMeasurments, plotTranMeasurments, plt
+from misc.print_plot import printModel, plotMeasurments, plotTranMeasurments
+from misc.save_load import saveModel, loadModel, saveCompiled, loadCompiled
 from circuit.models import NPN, PNP, Diode, Resistor, VoltageSource, CurrentSource, OpAmp, Capacitor, Inductor
