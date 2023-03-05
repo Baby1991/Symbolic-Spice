@@ -1,4 +1,4 @@
 __pycache__
 .vscode
-.pickle
+*.pickle
 __models__
