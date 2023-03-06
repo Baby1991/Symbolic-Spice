@@ -1,6 +1,6 @@
 from sympy import solve, Interval, Symbol, Eq
 import sympy as sp
-from solvers.inverseLaplace import inverseLaplace
+from solvers.inverseLaplace import inverseLaplace, __inverseLaplaceTransforms__
 from copy import deepcopy
 from solvers.solver import Solver
 
@@ -8,12 +8,11 @@ from solvers.symbols import t, s
 
 import multiprocessing
 from tqdm import tqdm
-  
+
 
 def inverseLaplaceProcess(item):
-                    
     var, expr = item
-
+            
     expr_t = inverseLaplace(expr)
     
     for a in sp.preorder_traversal(expr_t):
@@ -25,10 +24,10 @@ def inverseLaplaceProcess(item):
             else:
                 expr_t = expr_t.subs({sp.DiracDelta(a.args[0]) : sp.Float(0.0)})
                 
-    return {var : expr_t}
+    return (var, expr_t)
     
 
-def solveLaplace(compiled, tmax, tstep = 0.1, measurments = {}, workerN = 4, debugLog=True):
+def solveLaplace(compiled, tmax, tstep = 0.1, measurments = {}, workerN = 4, debugLog=0):
 
     compiled = deepcopy(compiled)
 
@@ -59,6 +58,8 @@ def solveLaplace(compiled, tmax, tstep = 0.1, measurments = {}, workerN = 4, deb
     failed_states = set()
 
     time = 0
+    
+    inverseLaplaceTransforms = __inverseLaplaceTransforms__
         
     while time <= tmax:
 
@@ -105,13 +106,67 @@ def solveLaplace(compiled, tmax, tstep = 0.1, measurments = {}, workerN = 4, deb
                     sol_t = {}
                     sol_ = {var : expr for var, expr in sol.items() if var in importantVariables_}
                     
+                    items = []
+                    
+                    with multiprocessing.Pool(processes=workerN) as pool:
+                        with tqdm(total = len(sol_.keys())) as pbar:
+                            for var, expr in sol_.items():
+                            
+                                #print(var, expr)
+                            
+                                for solvedExp in inverseLaplaceTransforms.keys():
+                                    ratio = expr / solvedExp
+                                    if ratio.is_number:
+                                        sol_t[var] = ratio * inverseLaplaceTransforms[solvedExp]
+                                        pbar.update(1)
+                                        continue
+                                    
+                                else:
+                                    if len(items) < workerN-1:
+                                        items.append((var, expr))
+                                    else:
+                                        items.append((var, expr))
+                                        ret = pool.map(inverseLaplaceProcess, items)
+                                        items = []
+                                        
+                                        for var, expr_t in ret:
+                                            sol_t[var] = expr_t
+                                            pbar.update(1)
+                                            
+                                            for solvedExp in inverseLaplaceTransforms.keys():
+                                                ratio = expr / solvedExp
+                                                if ratio.is_number:
+                                                    continue
+                                            else:
+                                                inverseLaplaceTransforms[sp.simplify(expr)] = sp.simplify(expr_t)   #save
+                                
+                                #print(items)
+                                    
+                            else:
+                                if len(items) > 0:
+                                    ret = pool.map(inverseLaplaceProcess, items)
+                                        
+                                    for var, expr_t in ret:
+                                        sol_t[var] = expr_t
+                                        pbar.update(1)
+                                        
+                                        for solvedExp in inverseLaplaceTransforms.keys():
+                                            ratio = expr / solvedExp
+                                            if ratio.is_number:
+                                                continue
+                                        else:
+                                            inverseLaplaceTransforms[sp.simplify(expr)] = sp.simplify(expr_t)   #save
+                                    
+                                
+                                
+                    
                     """
                     taskN = len(sol_.keys())
                     #workerN = 6
                     #chunksize = int(taskN / workerN * 0.5)
                     chunksize = workerN
                     
-                    with multiprocessing.Pool(processes=workerN) as pool:
+                    with multiprocessing.Pool(processes=workerN, initializer=initProcess, initargs=(__inverseLaplaceTransforms__, )) as pool:
                         if debugLog:
                             for ret in pool.imap_unordered(inverseLaplaceProcess, sol_.items(), chunksize=chunksize):
                                 sol_t.update(ret)
@@ -124,23 +179,27 @@ def solveLaplace(compiled, tmax, tstep = 0.1, measurments = {}, workerN = 4, deb
                                     pbar.update(1)
                     """
                     
+                    """
                     for item in sol_.items():
                         #print(item)
                         item_t = inverseLaplaceProcess(item)
                         #print(item_t)
                         sol_t.update(item_t)
                         #print("-------------")
+                    """
                         
-                    if debugLog:
+                    if debugLog > 1:
                         print("-------------------------------------------------")
-                        print(sol_t)
+                        for var, expr_t in sol_t.items():
+                            print(var, expr_t)
+                            print("----------------")
+                        print("-------------------------------------------------")
                     
                     #ineqs_ = sp.lambdify(t, ineqs({var : sp.Piecewise((0, abs(expr) < 1e-6), (expr, True)) for var, expr in sol_t.items()}), "numpy")
                     ineqs = {state : [sp.lambdify(t, cond.subs(sol_t)) for cond in conds] for state, conds in conditions.items()}
                     ineqs_ = lambda t_ : {state : [cond(t_) for cond in conds] for state, conds in ineqs.items()}
 
                     if debugLog:
-                        print("-------------------------------------------------")
                         print(conditions)
                         print(ineqs_(0.0))
                         print("*****************************************")

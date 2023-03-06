@@ -8,7 +8,7 @@ else:
     from solvers.symbols import *
 
 
-inverseLaplaceTransforms = {1/s : 1.0, 1/s**2 : t, 1/(1 + s**2) : sp.sin(t), s/(1 + s**2) : sp.cos(t)}
+__inverseLaplaceTransforms__ = {1/s : 1.0, 1/s**2 : t, 1/(1 + s**2) : sp.sin(t), s/(1 + s**2) : sp.cos(t)}
 
 
 class Heaviside_(sp.Function):
@@ -50,15 +50,6 @@ def Laplace(x, t0 = 0):
 
 def inverseLaplace(exp, debug = False):
     exp = sp.expand(exp)
-    
-    #print(exp)
-    
-    #print(inverseLaplaceTransforms)
-    for solvedExp in inverseLaplaceTransforms.keys():
-        ratio = exp / solvedExp
-        if ratio.is_number:
-            #print(ratio, solvedExp)
-            return ratio * inverseLaplaceTransforms[solvedExp]
     
     match(type(exp)):
         
@@ -258,7 +249,6 @@ def inverseLaplace(exp, debug = False):
         case _:
             raise Exception("type(exp) Unexpected")
     
-    inverseLaplaceTransforms[sp.simplify(exp)] = sp.simplify(exp_t)   #save
     return exp_t
 
 
