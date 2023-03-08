@@ -2,7 +2,7 @@ from circuit.component import *
 
 import sympy as sp
 from sympy import diff
-from solvers.inverseLaplace import Laplace
+from solvers.inverseLaplace import Laplace, LaplaceNew
 
 from solvers.symbols import t
 
@@ -45,7 +45,8 @@ class VoltageSource(Component):
                 "Laplace": {
                     "equations": [
                         Eq(
-                            Vs["V+"] - Vs["V-"],  Laplace(
+                            #Vs["V+"] - Vs["V-"],  Laplace(
+                            Vs["V+"] - Vs["V-"],  LaplaceNew(
                                 self.values["V_t"], self.values.get("t_0", 0))
                         ),
                         *Component.ZeroCurrentSum(Is),
@@ -125,7 +126,8 @@ class CurrentSource(Component):
                 "Laplace": {
                     "equations": [
                         Eq(
-                            Is["V-"],  Laplace(self.values["I_t"],
+                            #Is["V-"],  Laplace(self.values["I_t"],
+                            Is["V-"],  LaplaceNew(self.values["I_t"],
                                                self.values.get("t_0", 0))
                         ),
                         *Component.ZeroCurrentSum(Is),
@@ -835,4 +837,54 @@ class OpAmp(Component):
 
             },
 
+        }
+        
+        
+# --------------------------------------------------------------------------------------------------------------------------
+
+
+class Relay(Component):
+    """
+    Default Values: \\
+    Vs = 0V\\
+    """
+
+    default_values = {
+        "Vs": 0,
+    }
+
+    def allModes(self, Vs, Is):
+        return {
+
+            "Open": {
+                "OP": {
+                    "equations": [
+                        Eq(Is["V1"], 0),
+                        Eq(Is["V2"], 0),
+                        
+                        Eq(Is["V+"], 0),
+                        Eq(Is["V-"], 0),
+                    ],
+                    "conditions": [
+                        Vs["V+"] - Vs["V-"] < self.values["Vs"],
+                    ]
+                },
+
+            },
+
+            "Closed": {
+                "OP" : {
+                    "equations": [
+                        Eq(Vs["V1"], Vs["V2"]),
+                        Eq(Is["V1"] + Is["V2"], 0),
+                        
+                        Eq(Is["V+"], 0),
+                        Eq(Is["V-"], 0),
+                    ],
+                    "conditions": [
+                        Vs["V+"] - Vs["V-"] >= self.values["Vs"]
+                    ]
+                },
+
+            }
         }

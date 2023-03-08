@@ -1,6 +1,8 @@
 import sympy as sp
 from copy import deepcopy
 
+import lcapy
+
 
 if __name__ == "__main__":
     from symbols import *
@@ -23,11 +25,11 @@ class Heaviside_(sp.Function):
         return r'\theta(%s)' % (_t)
 
     
-class DiracDelta_(sp.Function):
+class Delta(sp.Function):
     @classmethod
     def eval(cls, t):
         if t.is_number:
-            return sp.Float(1.0) if abs(t) < 1e-9 else sp.Float(0.0)
+            return sp.oo if t == 0 else 0
 
     def _latex(self, printer):
         t, = self.args
@@ -247,15 +249,46 @@ def inverseLaplace(exp, debug = False):
                 exp_t = exp_t.subs({t : t + shift}) * sp.Heaviside(t + shift)
             
         case _:
+            print(exp, type(exp))
             raise Exception("type(exp) Unexpected")
     
     return exp_t
 
+def IDLT0(F):
+    return sp.limit(s * F, s, sp.oo)
 
+
+def inverseLaplaceNew(expr):
+    expr = lcapy.expr(str(expr))
+    #expr_t = expr(t).remove_condition()
+    expr_t = expr(t, causal=True)
+    expr_t = sp.simplify(sp.trigsimp(expr_t.sympy))
+    return expr_t
+
+def LaplaceNew(expr_t, t_ = 0):
+        
+    try:
+        expr_t = expr_t.subs({t : t0})
+        expr_t = expr_t.subs({t0 : t0 + t_})
+        expr_t = expr_t.subs({t0 : t})
+    except AttributeError:
+        expr_t = expr_t
+        
+    expr_t *= sp.Heaviside(t)
+        
+    expr_t = lcapy.expr(str(expr_t))
+    #expr = expr_t(s, causal=True)
+    expr = expr_t(s)
+    expr = sp.simplify(expr.sympy)
+    return expr
 
 
 if __name__ == "__main__":
-    print(inverseLaplace(61820502691519.0/(2.5e+20*s + 2.5e+17)))
+    #print(inverseLaplace(61820502691519.0/(2.5e+20*s + 2.5e+17)))
+    
+    print(inverseLaplaceNew(LaplaceNew(sp.Heaviside(t-1), 1.0000244140624999)))
+    
+    
 
 
 

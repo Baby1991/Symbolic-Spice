@@ -7,4 +7,4 @@ from solvers.symbols import t, t0, s
 from solvers.solver import Solver, Gnd
 from misc.print_plot import printModel, plotMeasurments, plotTranMeasurments
 from misc.save_load import saveModel, loadModel, saveCompiled, loadCompiled
-from circuit.models import NPN, PNP, Diode, Resistor, VoltageSource, CurrentSource, OpAmp, Capacitor, Inductor
+from circuit.models import NPN, PNP, Diode, Resistor, VoltageSource, CurrentSource, OpAmp, Capacitor, Inductor, Relay

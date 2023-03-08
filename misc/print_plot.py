@@ -154,8 +154,8 @@ def plotTranMeasurments(solutions, mint, maxt, step, measurments, ax=None):
 
         all_ys = {}
 
-        for interval, solution, states in solutions:
-            interval = interval.intersect(max_scale)
+        for interval_, solution, states in solutions:
+            interval = interval_.intersect(max_scale)
 
             states = {name : state for name, state in states if state != ""}
 
@@ -166,15 +166,15 @@ def plotTranMeasurments(solutions, mint, maxt, step, measurments, ax=None):
                 formulax = measurmentx.subs(solution)
                 formulay = measurmenty.subs(solution)
 
-                formulax = formulax.subs(t0, t + float(interval.start))
-                formulay = formulay.subs(t0, t + float(interval.start))
+                formulax = formulax.subs(t0, t + float(interval_.start))
+                formulay = formulay.subs(t0, t + float(interval_.start))
                 
                 #print(formulax, formulay)
                 
                 valx = sp.lambdify(t, formulax, "numpy")
                 valy = sp.lambdify(t, formulay, "numpy")
                 
-                values = {valx(t_ - float(interval.start)) : valy(t_ - float(interval.start)) for t_ in ts}
+                values = {valx(t_ - float(interval_.start)) : valy(t_ - float(interval_.start)) for t_ in ts}
                 
                 formulax = sp.simplify(formulax)
                 formulay = sp.simplify(formulay)
