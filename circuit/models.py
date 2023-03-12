@@ -356,7 +356,7 @@ class Diode(Component):
                         *Component.OpenConnection(Vs, Is)
                     ],
                     "conditions": [
-                        Vs["Vp"] - Vs["Vn"] <= self.values["Vd"]
+                        Vs["Vp"] - Vs["Vn"] < self.values["Vd"]
                     ]
                 },
 
@@ -382,7 +382,7 @@ class Diode(Component):
                         *Component.ZeroCurrentSum(Is)
                     ],
                     "conditions": [
-                        Is["Vp"] > 0
+                        Is["Vp"] >= 0
                     ]
                 },
                 
@@ -392,7 +392,7 @@ class Diode(Component):
                         *Component.ZeroCurrentSum(Is)
                     ],
                     "conditions": [
-                        Is["Vp"] > 0
+                        Is["Vp"] >= 0
                     ]
                 },
 

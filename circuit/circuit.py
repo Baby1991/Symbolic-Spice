@@ -93,6 +93,7 @@ class Circuit:
 
                 new_nodes = {element.nodes[node] if node in element.nodes.keys(
                 ) else f"{element.name}_{node}" for node in element.circuit._nodes_}
+                new_nodes = {node for node in new_nodes if type(node) == str}
                 self._nodes_.update(new_nodes)
 
                 substitutions = Circuit.compileSubstitutions(element.circuit._generics_, element.circuit._constants_, element.values)

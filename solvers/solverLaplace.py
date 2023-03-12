@@ -1,6 +1,6 @@
 from sympy import solve, Interval, Symbol, Eq
 import sympy as sp
-from solvers.inverseLaplace import inverseLaplace, __inverseLaplaceTransforms__, IDLT0, inverseLaplaceNew, LaplaceNew, Delta
+from solvers.inverseLaplace import myFunctions, IDLT0, inverseLaplaceNew, bilinearDiscretify, Delta, U, __inverseLaplaceTransforms__
 from copy import deepcopy
 from solvers.solver import Solver
 
@@ -15,28 +15,23 @@ from tqdm import tqdm
 def inverseLaplaceProcess(item):
     var, expr = item
     
-    #expr_t0 = inverseLaplace(expr)
-    expr_t = inverseLaplaceNew(expr)
-        
+    try:
+        expr_t = inverseLaplaceNew(expr)
+    except AttributeError:
+        expr_t = sp.inverse_laplace_transform(expr, s, t)        
     
     for a in sp.preorder_traversal(expr_t):
         if isinstance(a, sp.Heaviside):
-            #expr_t = expr_t.subs({sp.Heaviside(a.args[0]) : 1.0})
-            if a.args[0] == t:
-                expr_t = expr_t.subs({sp.Heaviside(a.args[0]) : 1.0})
-            
+            expr_t = expr_t.subs({sp.Heaviside(a.args[0]) : U(a.args[0])})
             
         elif isinstance(a, sp.DiracDelta):
             if len(a.args) > 1:
                 expr_t = expr_t.subs({sp.DiracDelta(a.args[0], a.args[1]) : Delta(a.args[0])})
             else:
                 expr_t = expr_t.subs({sp.DiracDelta(a.args[0]) : Delta(a.args[0])})
-    
-    
-    #print(expr, expr_t)
-             
+        
     return (var, expr_t)
-    
+        
 
 def solveLaplace(compiled, tmax, tstep = 0.1, workerN = 4, debugLog=0):
 
@@ -59,14 +54,16 @@ def solveLaplace(compiled, tmax, tstep = 0.1, workerN = 4, debugLog=0):
     solutions = []
     failed_states = set()
 
+    solvedLaplace = deepcopy(__inverseLaplaceTransforms__)
+
     time = 0
-    
-    inverseLaplaceTransforms = __inverseLaplaceTransforms__
         
     while time <= tmax:
 
         t_start = time
-        local_time = 0
+        
+        time += tstep
+        local_time = tstep
 
         current_solutions = []
 
@@ -81,7 +78,7 @@ def solveLaplace(compiled, tmax, tstep = 0.1, workerN = 4, debugLog=0):
             equations.extend(circuitEquations)
             
             if debugLog:
-                print(states)
+                print({(name, state) for name, state in states if state != ""})
                 print(equations)
                 print(conditions)
      
@@ -100,6 +97,19 @@ def solveLaplace(compiled, tmax, tstep = 0.1, workerN = 4, debugLog=0):
                     print("-------------------------------------------------")
 
                 for sol in sols:
+                    
+                    """
+                    if debugLog:
+                        print(sol)
+                    
+                    for var, expr in deepcopy(sol).items():
+                        atoms = expr.atoms(Symbol).difference({s})
+                        if atoms:
+                            for sym in atoms:
+                                expr = expr.subs(sym, sp.Float(0.0))
+                                sol[sym] = sp.Float(0.0)
+                            sol[var] = expr
+                    """     
                     
                     if debugLog:
                         print(sol)
@@ -132,132 +142,37 @@ def solveLaplace(compiled, tmax, tstep = 0.1, workerN = 4, debugLog=0):
             states, sol, conditions = current_solutions[0]
 
             sol_t = {}
-            
-            
+                        
             for item in sol.items():
                 if debugLog > 1:
                     print(*item)
+
+                var, expr = item
+                
+                for solvedExpr, solvedExpr_t in solvedLaplace.items():
+                    ratio = expr / solvedExpr
+                    if ratio.is_number:
+                        sol_t[var] = ratio * solvedExpr_t
+                        continue
                 
                 item_t = inverseLaplaceProcess(item)
                 
                 var, expr_t = item_t
+                
+                solvedLaplace[expr] = expr_t
                 
                 if debugLog > 1:
                     print(expr_t)
                 
                 sol_t[var] = expr_t
                 
-        
                 
-                
-            """
-            sol_ = {}
-            
-            
-            for var, expr in sol.items():
-                for solvedExp in inverseLaplaceTransforms.keys():
-                    ratio = expr / solvedExp
-                    if ratio.is_number:
-                        sol_t[var] = ratio * inverseLaplaceTransforms[solvedExp]
-                        break
-                else:
-                    sol_[var] = expr
-            
-            print(sol_)
-            """
-            
-            
-            
-            """
-            items = []
-            
-            with multiprocessing.Pool(processes=workerN) as pool:
-                with tqdm(total = len(sol_.keys())) as pbar:
-                    for var, expr in sol_.items():
                     
-                        #print(var, expr)
-                    
-                        for solvedExp in inverseLaplaceTransforms.keys():
-                            ratio = expr / solvedExp
-                            if ratio.is_number:
-                                sol_t[var] = ratio * inverseLaplaceTransforms[solvedExp]
-                                pbar.update(1)
-                                continue
-                            
-                        else:
-                            if len(items) < workerN-1:
-                                items.append((var, expr))
-                            else:
-                                items.append((var, expr))
-                                ret = pool.map(inverseLaplaceProcess, items)
-                                items = []
-                                
-                                for var, expr_t in ret:
-                                    sol_t[var] = expr_t
-                                    pbar.update(1)
-                                    
-                                    for solvedExp in inverseLaplaceTransforms.keys():
-                                        ratio = expr / solvedExp
-                                        if ratio.is_number:
-                                            continue
-                                    else:
-                                        inverseLaplaceTransforms[sp.simplify(expr)] = sp.simplify(expr_t)   #save
-                        
-                        #print(items)
-                            
-                    else:
-                        if len(items) > 0:
-                            ret = pool.map(inverseLaplaceProcess, items)
-                                
-                            for var, expr_t in ret:
-                                sol_t[var] = expr_t
-                                pbar.update(1)
-                                
-                                for solvedExp in inverseLaplaceTransforms.keys():
-                                    ratio = expr / solvedExp
-                                    if ratio.is_number:
-                                        continue
-                                else:
-                                    inverseLaplaceTransforms[sp.simplify(expr)] = sp.simplify(expr_t)   #save
-            """
-            
-            
-            
-            """
-            for item in sol_.items():
-                for solvedExp in inverseLaplaceTransforms.keys():
-                    ratio = expr / solvedExp
-                    if ratio.is_number:
-                        sol_t[var] = ratio * inverseLaplaceTransforms[solvedExp]        
-                        break
-                
-                #print(item)
-                item_t = inverseLaplaceProcess(item)
-                #print(item_t)
-                var, expr_t = item_t
-                sol_t[var] = expr_t
-                
-                inverseLaplaceTransforms[expr_t] = expr
-                
-                #print("-------------")
-            """
-            
-            """
-            if debugLog > 1:
-                print("-------------------------------------------------")
-                for var, expr_t in sol_t.items():
-                    print(var)
-                    print(sol[var])
-                    print(expr_t)
-                    print("----------------")
-                print("-------------------------------------------------")
-            """
-                    
-            ineqs = {state : [sp.lambdify(t, cond.subs(sol_t)) for cond in conds] for state, conds in conditions.items()}
+            ineqs = {state : [sp.lambdify(t, cond.subs(sol_t), myFunctions) for cond in conds] for state, conds in conditions.items()}
             ineqs_ = lambda t_ : {state : [cond(t_) for cond in conds] for state, conds in ineqs.items()}
             
             
-
+            print("vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv")
             print(time, "\t\t\t\t\t\t\r", end="")
 
             while all(all(conds) for conds in ineqs_(local_time).values()) and time <= tmax:
@@ -270,22 +185,29 @@ def solveLaplace(compiled, tmax, tstep = 0.1, workerN = 4, debugLog=0):
 
                 currStep = tstep / 2
                 i = 0
+                p = 0
                 
                 while True:
-                    local_time -= currStep
-                    time -= currStep
-                    
-                    if not all(all(conds) for conds in ineqs_(local_time).values()):
-                        if i > 10:
-                            break
-                    else:
-                        if i > 1000:
-                            break
+                    if local_time > currStep:
+                        local_time -= currStep
+                        time -= currStep
+                        
+                        if not all(all(conds) for conds in ineqs_(local_time).values()):
+                            if i > 10:
+                                break
                         else:
-                            local_time += currStep
-                            time += currStep
-                    
-                    i += 1    
+                            if i > 1000:
+                                break
+                            else:
+                                local_time += currStep
+                                time += currStep
+                        
+                        i += 1
+                    else:
+                        p += 1
+                        if p > 10:
+                            break
+                            
                     currStep = currStep / 2
                     
                 failed_states = set()

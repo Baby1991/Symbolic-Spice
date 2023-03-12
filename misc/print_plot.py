@@ -1,21 +1,20 @@
 import sympy as sp
 from solvers.symbols import t, t0
+from solvers.inverseLaplace import myFunctionsReal
 import matplotlib.pyplot as plt
 import numpy as np
 
 def printModel(model, var = t, measurments = []):
     if measurments == []:
-        for interval, solution, state in model:
-            if state != "":
-                print(state)
+        for interval, solution, states in model:
+            print({(name, state) for name, state in states if state != ""})
             #if var is not None:
             print(f"{var} ∈ {interval}")
             print(solution)
             print("-------------------------------------")
     else:
-        for interval, solution, state in model:
-            if state != "":
-                print(state)
+        for interval, solution, states in model:
+            print({(name, state) for name, state in states if state != ""})
             #if var is not None:
             print(f"{var} ∈ {interval}")
             for expr in measurments:
@@ -171,8 +170,8 @@ def plotTranMeasurments(solutions, mint, maxt, step, measurments, ax=None):
                 
                 #print(formulax, formulay)
                 
-                valx = sp.lambdify(t, formulax, "numpy")
-                valy = sp.lambdify(t, formulay, "numpy")
+                valx = sp.lambdify(t, formulax, [myFunctionsReal, "numpy"])
+                valy = sp.lambdify(t, formulay, [myFunctionsReal, "numpy"])
                 
                 values = {valx(t_ - float(interval_.start)) : valy(t_ - float(interval_.start)) for t_ in ts}
                 
