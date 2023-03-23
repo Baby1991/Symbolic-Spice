@@ -8,6 +8,9 @@ if __name__ == "__main__":
 else:
     from solvers.symbols import *
 
+t0 = sp.Symbol("t_0", real=True, positive=True)
+
+
 class U(sp.Function):
     @classmethod
     def eval(cls, t):
@@ -18,9 +21,6 @@ class U(sp.Function):
         t, = self.args
         _t = printer._print(t)
         return r'u(%s)' % (_t)
-
-
-
 
 class Delta(sp.Function):
     @classmethod
