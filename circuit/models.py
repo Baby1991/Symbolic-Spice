@@ -357,7 +357,10 @@ class Diode(Component):
                     ],
                     "conditions": [
                         Vs["Vp"] - Vs["Vn"] < self.values["Vd"]
-                    ]
+                    ],
+                    "edge-case": {
+                        "Fwd" : [Vs["Vp"] - Vs["Vn"] - self.values["Vd"]]
+                    }
                 },
 
 
@@ -393,7 +396,10 @@ class Diode(Component):
                     ],
                     "conditions": [
                         Is["Vp"] >= 0
-                    ]
+                    ],
+                    "edge-case": {
+                        "Fwd" : [Is["Vp"]]
+                    }
                 },
 
                 "SmallSignal": {
@@ -412,75 +418,6 @@ class Diode(Component):
 
                     ]
                 }
-
-            }
-        }
-
-# --------------------------------------------------------------------------------------------------------------------------
-
-class SemiRealDiode(Component):
-    """
-    Default Values: \\
-    Vd = 0.6V\\
-    Is = 1e-9\\
-    T  = 300K\\
-    """
-
-    default_values = {
-        "Vd": 0.6,
-        "Is": 1e-9,
-        "T": 300,
-    }
-
-    def allModes(self, Vs, Is):
-        return {
-
-            "Cut": {
-                "OP": {
-                    "equations": [
-                        Eq(Is["Vp"], (Vs["Vp"] - Vs["Vn"]) * self.values["Is"]
-                           / self.values["Vd"]),
-                        *Component.ZeroCurrentSum(Is),
-                    ],
-                    "conditions": [
-                        Vs["Vp"] - Vs["Vn"] < self.values["Vd"]
-                    ]
-                },
-
-            "Laplace" : {
-                    "equations": [
-                        Eq(Is["Vp"], (Vs["Vp"] - Vs["Vn"]) * self.values["Is"]
-                           / self.values["Vd"]),
-                        *Component.ZeroCurrentSum(Is),
-                    ],
-                    "conditions": [
-                        Vs["Vp"] - Vs["Vn"] < self.values["Vd"]
-                    ]
-                },
-               
-
-            },
-
-            "Fwd": {
-                "OP" : {
-                    "equations": [
-                        Eq(Vs["Vp"] - Vs["Vn"], self.values["Vd"]),
-                        *Component.ZeroCurrentSum(Is)
-                    ],
-                    "conditions": [
-                        Is["Vp"] >= self.values["Is"]
-                    ]
-                },
-                
-                "Laplace" : {
-                    "equations": [
-                        Eq(Vs["Vp"] - Vs["Vn"], self.values["Vd"] / s),
-                        *Component.ZeroCurrentSum(Is)
-                    ],
-                    "conditions": [
-                        Is["Vp"] >= self.values["Is"]
-                    ]
-                },
 
             }
         }
@@ -794,7 +731,11 @@ class OpAmp(Component):
                     "conditions": [
                         Vs["Vop"] < Vs["Vcc"],
                         Vs["Vop"] > Vs["Vee"],
-                    ]
+                    ],
+                    "edge-case": {
+                        "SatMax" : [Eq(Vs["Vop"], Vs["Vcc"])],
+                        "SatMin" : [Eq(Vs["Vop"], Vs["Vee"])],
+                    }
                 },
 
                 "SmallSignal": {
@@ -843,7 +784,10 @@ class OpAmp(Component):
                     ],
                     "conditions": [
                         Vs["V+"] - Vs["V-"] >= Vs["Vcc"] / self.values["Av"],
-                    ]
+                    ],
+                    "edge-case": {
+                        "Amp" : [Vs["V+"] - Vs["V-"] - Vs["Vcc"] / self.values["Av"]],
+                    }
                 },
 
                 "SmallSignal": {
@@ -886,7 +830,10 @@ class OpAmp(Component):
                     ],
                     "conditions": [
                         Vs["V+"] - Vs["V-"] <= Vs["Vee"] / self.values["Av"],
-                    ]
+                    ],
+                    "edge-case": {
+                        "Amp" : [Vs["V+"] - Vs["V-"] - Vs["Vee"] / self.values["Av"]],
+                    }
                 },
 
                 "SmallSignal": {
@@ -935,6 +882,9 @@ class Relay(Component):
                     ],
                     "conditions": [
                         Vs["V+"] - Vs["V-"] < self.values["Vs"],
+                    ],
+                    "edge-case": [
+                        Vs["V+"] - Vs["V-"] - self.values["Vs"],
                     ]
                 },
 
@@ -951,6 +901,9 @@ class Relay(Component):
                     ],
                     "conditions": [
                         Vs["V+"] - Vs["V-"] >= self.values["Vs"]
+                    ],
+                    "edge-case": [
+                        Vs["V+"] - Vs["V-"] - self.values["Vs"]
                     ]
                 },
 

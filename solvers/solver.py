@@ -45,6 +45,7 @@ class Solver():
             states = set()
             equations = []
             conditions = {}
+            edge_cases = {}
             
             for p in perm:
                 for state, eqs in p.items():
@@ -52,8 +53,11 @@ class Solver():
                     equations.extend(eqs["equations"])
                     if eqs["conditions"] != []:
                         conditions.update({state : eqs["conditions"]})
+                    edge_case = eqs.get("edge-case", {})
+                    if edge_case != {}:
+                        edge_cases.update(edge_case)
                 
-            permutations.append((states, equations, conditions))
+            permutations.append((states, equations, conditions, edge_cases))
         
         return permutations
     
