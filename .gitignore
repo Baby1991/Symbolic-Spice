@@ -2,3 +2,4 @@ __pycache__
 .vscode
 *.pickle
 __models__
+.venv
