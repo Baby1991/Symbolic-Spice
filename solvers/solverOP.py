@@ -76,7 +76,9 @@ def solveOP(compiled, debugLog=True):
                             solutions.append((interval, sol, states))
 
                 else:
-                    ineqs = [ineq.subs(sol) for ineq in conditions]
+                    ineqs = []
+                    for state_, ineqs_ in conditions.items():
+                        ineqs.extend([ineq.subs(sol) for ineq in ineqs_])
 
                     if debugLog:
                         print(ineqs)

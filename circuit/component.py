@@ -1,7 +1,6 @@
 from circuit.node import Node
 from sympy import Eq, oo, Symbol, exp
 from copy import deepcopy
-from solvers.symbols import s
 
 # --------------------------------------------------------------------------------------------------------------------------
 
