@@ -1,8 +1,7 @@
 from subcircuits.subcircuits import *
 
 full_bridge_rectifier = Circuit()
-#Vd = full_bridge_rectifier.generic("Vd", 0.6)
-Vd = full_bridge_rectifier.constant("Vd", 0.6)
+Vd = full_bridge_rectifier.generic("Vd", 0.6)
 full_bridge_rectifier.element(
                                 Diode("D1", {"Vp" : "Vin1", "Vn" : "Vout+"}, Vd=Vd),
                                 Diode("D2", {"Vp" : "Vout-", "Vn" : "Vin2"}, Vd=Vd),
